@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducttape.tests.test import SchemaRegistryFailoverTest
-from ducttape.services.schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
+from test import SchemaRegistryFailoverTest
+from services.schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
 import time
 
 # Specify retry frequency and retry window

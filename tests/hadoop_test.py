@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .test import HadoopTest
-from ducttape.services.performance import HadoopPerformanceService
+from services.performance import HadoopPerformanceService
 
 
 class HadoopV1SetupTest(HadoopTest):

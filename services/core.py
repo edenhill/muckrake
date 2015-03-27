@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .service import Service
+from ducttape.services.service import Service
 import time, re, json
-from ducttape.services.schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
-from ducttape.services.kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
+from .schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
+from .kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
 import abc
 
 

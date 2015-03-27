@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .test import CamusTest
-from ducttape.services.performance import CamusPerformanceService
+from services.performance import CamusPerformanceService
 
 
 class CamusHadoopV1Test(CamusTest):

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .service import Service
+from ducttape.services.service import Service
 from .schema_registry_utils import *
 import time, threading
 

@@ -13,9 +13,8 @@
 # limitations under the License.
 
 from .test import RestProxyTest
-from ducttape.services.performance import ProducerPerformanceService, RestProducerPerformanceService,\
+from services.performance import ProducerPerformanceService, RestProducerPerformanceService,\
     ConsumerPerformanceService, RestConsumerPerformanceService
-import time, logging
 
 class NativeVsRestProducerPerformance(RestProxyTest):
     def __init__(self, cluster):

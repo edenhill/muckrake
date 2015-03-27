@@ -13,11 +13,11 @@
 # limitations under the License.
 
 from .test import Test
-from ducttape.services.core import ZookeeperService
-from ducttape.services.core import KafkaService
-from ducttape.services.core import KafkaRestService
-from ducttape.services.core import SchemaRegistryService
-from ducttape.services.register_schemas_service import RegisterSchemasService
+from services.core import ZookeeperService
+from services.core import KafkaService
+from services.core import KafkaRestService
+from services.core import SchemaRegistryService
+from services.register_schemas_service import RegisterSchemasService
 
 
 class EverythingRunsTest(Test):
@@ -41,11 +41,11 @@ class EverythingRunsTest(Test):
         self.kafka = KafkaService(self.cluster, self.num_brokers, self.zk)
         self.kafka.start()
 
-        self.rest_proxy = KafkaRestService(self.cluster, self.num_rest, self.zk, self.kafka)
-        self.rest_proxy.start()
-
         self.schema_registry = SchemaRegistryService(self.cluster, self.num_schema_registry, self.zk, self.kafka)
         self.schema_registry.start()
+
+        self.rest_proxy = KafkaRestService(self.cluster, self.num_rest, self.zk, self.kafka, self.schema_registry)
+        self.rest_proxy.start()
 
         self.register_driver = RegisterSchemasService(self.cluster, self.num_register_driver, self.schema_registry,
                                                       retry_wait_sec=.02, num_tries=5,
