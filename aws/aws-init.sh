@@ -30,7 +30,7 @@ done
 
 # Create Vagrantfile.local as a convenience
 if [ ! -e "$base_dir/Vagrantfile.local" ]; then
-    cp aws-example-Vagrantfile.local $base_dir/Vagrantfile.local
+    cp $base_dir/aws/aws-example-Vagrantfile.local $base_dir/Vagrantfile.local
 fi
 
 gradle="gradle-2.2.1"
