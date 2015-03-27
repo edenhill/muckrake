@@ -12,46 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducttape.cluster import VagrantCluster
-from ducttape.logger import Logger
+from ducttape.tests.test import Test
 from services.register_schemas_service import RegisterSchemasService
 from services.schema_registry_utils import get_schema_by_id, get_all_versions, get_schema_by_version, get_by_schema
 from services.core import ZookeeperService, KafkaService, KafkaRestService, SchemaRegistryService, create_hadoop_service
-import logging
 import time
 import json
-
-class Test(Logger):
-    """
-    Base class for tests that provides some minimal helper utilities'
-    """
-
-    def __init__(self, cluster):
-        self.cluster = cluster
-
-    def log_start(self):
-        self.logger.info("Running test %s", self._short_class_name())
-
-    def min_cluster_size(self):
-        """
-        Subclasses implement this to provide a helpful heuristic to prevent trying to run a test on a cluster
-        with too few nodes.
-        """
-        raise NotImplementedError("All tests must implement this method.")
-
-    @classmethod
-    def run_standalone(cls):
-        logging.basicConfig(level=logging.INFO)
-        cluster = VagrantCluster()
-        test = cls(cluster)
-
-        if test.min_cluster_size() > cluster.num_available_nodes():
-            raise RuntimeError(
-                "There are not enough nodes available in the cluster to run this test. Needed: %d, Available: %d" %
-                (test.min_cluster_size(), cluster.num_available_nodes()))
-
-        test.log_start()
-        test.run()
 
 
 class KafkaTest(Test):
