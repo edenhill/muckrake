@@ -47,7 +47,7 @@ fi
 grep "AWS ACCESS KEYS" ~/.bashrc > /dev/null
 if [ $? != 0 ]; then
   echo "# --- AWS ACCESS KEYS ---" >> ~/.bashrc
-  echo ". `realpath aws-access-keys-commands`" >> ~/.bashrc
+  echo ". `realpath $base_dir/aws/aws-access-keys-commands`" >> ~/.bashrc
   echo "# -----------------------" >> ~/.bashrc
   source ~/.bashrc
 fi
