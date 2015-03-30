@@ -21,7 +21,7 @@ results, etc.).
    --provider=aws --no-parallel`.
 4. Run one or more tests. Individual tests can be run directly:
 
-        $ python -m ducttape.tests.native_vs_rest_performance
+        $ python -m tests.native_vs_rest_performance
 
    There isn't yet a test runner to run all scripts in sequence.
 5. To iterate/run again if you already initialized the repositories:
@@ -59,14 +59,14 @@ EC2 Quickstart
    tested below)
  - Most defaults are fine. Make sure you get an auto-assigned public IP
    (normally on for the default settings) and set IAM role ->
-   ducttape-master, which gives permissions to launch/kill additional
+   ducktape-master, which gives permissions to launch/kill additional
    machines. Tagging the instance with a useful name,
-   e.g. "<you>-ducttape-master" is recommended. Set the security group to
-   'ducttape-insecure', which leaves the machine open on a variety of ports for
+   e.g. "<you>-ducktape-master" is recommended. Set the security group to
+   'ducktape-insecure', which leaves the machine open on a variety of ports for
    traffic coming from other machines in the security group and enables SSH
    access from anywhere. This is less secure than a production config, but makes
    it so we generally don't have to worry about adding ports whenever we add new
-   services to ducttape.
+   services to ducktape.
  - Once started, grab the public hostname/IP and SSH into the host using
    `ssh -i /path/to/keypair.pem ubuntu@public.hostname.amazonaws.com`. All
    remaining steps will be run on the jump server. Highly recommended: use tmux 
@@ -76,11 +76,11 @@ EC2 Quickstart
    `scp -i /path/to/confluent.pem /path/to/confluent.pem ubuntu@public.hostname.amazonaws.com:confluent.pem`
 
 * Start by making sure you're up to date and installing a few dependencies,
-  getting ducttape, and building:
+  getting ducktape, and building:
 
         sudo apt-get update && sudo apt-get -y upgrade && sudo apt-get install -y git
-        git clone https://github.com/confluentinc/ducttape.git
-        cd ducttape
+        git clone https://github.com/confluentinc/ducktape.git
+        cd ducktape
         . aws-init.sh
 
   Now is a good time to install any extra stuff you might need, e.g. your
@@ -95,7 +95,7 @@ EC2 Quickstart
         num_workers = 4
         ec2_keypair_name = 'confluent'
         ec2_keypair_file = '/home/ubuntu/confluent.pem'
-        ec2_security_groups = ['ducttape-insecure']
+        ec2_security_groups = ['ducktape-insecure']
         ec2_region = 'us-west-2'
         ec2_ami = "ami-29ebb519"
 
@@ -109,7 +109,7 @@ EC2 Quickstart
 
 * Now you should be able to run tests:
 
-        python -m ducttape.tests.native_vs_rest_performance
+        python -m ducktape.tests.native_vs_rest_performance
 
 * Once configured, you can just shutdown your machines until you need them
   again. To do so, use

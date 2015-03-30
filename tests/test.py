@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducttape.tests.test import Test
+from ducktape.tests.test import Test
 from services.register_schemas_service import RegisterSchemasService
 from services.schema_registry_utils import get_schema_by_id, get_all_versions, get_schema_by_version, get_by_schema
 from services.core import ZookeeperService, KafkaService, KafkaRestService, SchemaRegistryService, create_hadoop_service

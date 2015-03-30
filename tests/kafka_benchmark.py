@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from .test import KafkaTest
-from ducttape.services.service import Service
+from ducktape.services.service import Service
 from services.performance import ProducerPerformanceService, ConsumerPerformanceService, EndToEndLatencyService
 
 class KafkaBenchmark(KafkaTest):

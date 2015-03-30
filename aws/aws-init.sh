@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script should be run once on your aws test driver machine before
-# attempting to run any ducttape tests
+# attempting to run any ducktape tests
 
 # Install dependencies
 sudo apt-get install -y maven openjdk-6-jdk build-essential \
