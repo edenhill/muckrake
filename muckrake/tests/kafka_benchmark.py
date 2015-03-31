@@ -14,7 +14,7 @@
 
 from .test import KafkaTest
 from ducktape.services.service import Service
-from services.performance import ProducerPerformanceService, ConsumerPerformanceService, EndToEndLatencyService
+from muckrake.services.performance import ProducerPerformanceService, ConsumerPerformanceService, EndToEndLatencyService
 
 class KafkaBenchmark(KafkaTest):
     '''A benchmark of Kafka producer/consumer performance. This replicates the test

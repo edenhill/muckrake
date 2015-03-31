@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from test import SchemaRegistryFailoverTest
-from services.schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
+from muckrake.services.schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
 import time
 
 # Specify retry frequency and retry window

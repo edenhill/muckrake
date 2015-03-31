@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from .test import RestProxyTest
-from services.performance import ProducerPerformanceService, RestProducerPerformanceService,\
+from muckrake.services.performance import ProducerPerformanceService, RestProducerPerformanceService,\
     ConsumerPerformanceService, RestConsumerPerformanceService
 
 class NativeVsRestProducerPerformance(RestProxyTest):

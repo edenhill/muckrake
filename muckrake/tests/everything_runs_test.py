@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .test import Test
-from services.core import ZookeeperService
-from services.core import KafkaService
-from services.core import KafkaRestService
-from services.core import SchemaRegistryService
-from services.register_schemas_service import RegisterSchemasService
+from ducktape.tests.test import Test
+from muckrake.services.core import ZookeeperService
+from muckrake.services.core import KafkaService
+from muckrake.services.core import KafkaRestService
+from muckrake.services.core import SchemaRegistryService
+from muckrake.services.register_schemas_service import RegisterSchemasService
 
 
 class EverythingRunsTest(Test):
