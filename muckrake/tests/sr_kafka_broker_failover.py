@@ -84,10 +84,3 @@ class KafkaBrokerHardBounce(SchemaRegistryFailoverTest):
 
             # Wait long enough for previous leader to probably be awake again
             time.sleep(10)
-
-
-if __name__ == "__main__":
-    KafkaLeaderCleanFailover.run_standalone()
-    KafkaLeaderHardFailover.run_standalone()
-    KafkaBrokerCleanBounce.run_standalone()
-    KafkaBrokerHardBounce.run_standalone()

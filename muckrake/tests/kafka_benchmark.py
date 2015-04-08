@@ -193,6 +193,3 @@ class KafkaBenchmark(KafkaTest):
         self.logger.info(" Producer: %s", throughput(pc_producer))
         self.logger.info(" Consumer: %s", throughput(pc_producer))
         self.logger.info("End-to-end latency: median %f ms, 99%% %f ms, 99.9%% %f ms", e2e_latency.results[0]['latency_50th_ms'], e2e_latency.results[0]['latency_99th_ms'], e2e_latency.results[0]['latency_999th_ms'])
-
-if __name__ == "__main__":
-    KafkaBenchmark.run_standalone()

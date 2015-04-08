@@ -39,7 +39,3 @@ class SchemaRegistryBenchmark(SchemaRegistryTest):
         self.logger.info("Schema Registry performance: %f per sec, %f ms",
                          schema_registry_perf.results[0]['records_per_sec'],
                          schema_registry_perf.results[0]['latency_99th_ms'])
-
-
-if __name__ == "__main__":
-    SchemaRegistryBenchmark.run_standalone()

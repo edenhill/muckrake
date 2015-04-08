@@ -98,7 +98,3 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
 
         self.logger.info("Consumer performance: %f MB/s, %f msg/sec", consumer_perf.results[0]['mbps'], consumer_perf.results[0]['records_per_sec'])
         self.logger.info("REST Consumer performance: %f MB/s, %f msg/sec", rest_consumer_perf.results[0]['mbps'], rest_consumer_perf.results[0]['records_per_sec'])
-
-if __name__ == "__main__":
-    NativeVsRestProducerPerformance.run_standalone()
-    NativeVsRestConsumerPerformance.run_standalone()

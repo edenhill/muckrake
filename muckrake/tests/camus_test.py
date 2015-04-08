@@ -48,9 +48,6 @@ class CamusHadoopV1Test(CamusTest):
         camus_perf.run()
         self.tearDown()
 
-if __name__ == "__main__":
-    CamusHadoopV1Test.run_standalone()
-
 
 class CamusHadoopV2Test(CamusTest):
     """
@@ -85,9 +82,6 @@ class CamusHadoopV2Test(CamusTest):
         camus_perf.run()
         self.tearDown()
 
-if __name__ == "__main__":
-    CamusHadoopV2Test.run_standalone()
-
 
 class CamusHDPTest(CamusTest):
     """
@@ -121,6 +115,3 @@ class CamusHDPTest(CamusTest):
             self.cluster, self.num_camus_perf, self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
         camus_perf.run()
         self.tearDown()
-
-if __name__ == "__main__":
-    CamusHDPTest.run_standalone()

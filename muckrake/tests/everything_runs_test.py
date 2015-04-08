@@ -60,6 +60,3 @@ class EverythingRunsTest(Test):
         self.kafka.stop()
 
         self.logger.info("All proceeded smoothly.")
-
-if __name__ == "__main__":
-    EverythingRunsTest.run_standalone()
