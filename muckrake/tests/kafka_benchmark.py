@@ -28,8 +28,6 @@ class KafkaBenchmark(KafkaTest):
         })
 
     def run(self):
-        self.setUp()
-
         msgs_default = 50000000
         msgs_large = 100000000
         msg_size_default = 100
@@ -152,9 +150,6 @@ class KafkaBenchmark(KafkaTest):
             intermediate_stats=True
         )
         throughput_perf.run()
-
-
-        self.tearDown()
 
         # Summarize, extracting just the key info. With multiple
         # producers/consumers, we display the aggregate value

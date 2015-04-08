@@ -56,7 +56,7 @@ class EverythingRunsTest(Test):
 
         self.schema_registry.stop()
         self.rest_proxy.stop()
-        self.zk.stop()
         self.kafka.stop()
+        self.zk.stop()
 
         self.logger.info("All proceeded smoothly.")
