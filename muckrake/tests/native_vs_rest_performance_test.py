@@ -23,8 +23,6 @@ class NativeVsRestProducerPerformance(RestProxyTest):
         })
 
     def run(self):
-        self.setUp()
-
         msgs = 50000000
         msg_size = 100
         batch_size = 8196
@@ -48,8 +46,6 @@ class NativeVsRestProducerPerformance(RestProxyTest):
         producer_perf.run()
         rest_producer_perf.run()
 
-        self.tearDown()
-
         self.logger.info("Producer performance: %f per sec, %f ms", producer_perf.results[0]['records_per_sec'], producer_perf.results[0]['latency_99th_ms'])
         self.logger.info("REST Producer performance: %f per sec, %f ms", rest_producer_perf.results[0]['records_per_sec'], rest_producer_perf.results[0]['latency_99th_ms'])
 
@@ -60,8 +56,6 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
         })
 
     def run(self):
-        self.setUp()
-
         msgs = 5000000
         msg_size = 100
         batch_size = 8196
@@ -94,11 +88,5 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
         consumer_perf.run()
         rest_consumer_perf.run()
 
-        self.tearDown()
-
         self.logger.info("Consumer performance: %f MB/s, %f msg/sec", consumer_perf.results[0]['mbps'], consumer_perf.results[0]['records_per_sec'])
         self.logger.info("REST Consumer performance: %f MB/s, %f msg/sec", rest_consumer_perf.results[0]['mbps'], rest_consumer_perf.results[0]['records_per_sec'])
-
-if __name__ == "__main__":
-    NativeVsRestProducerPerformance.run_standalone()
-    NativeVsRestConsumerPerformance.run_standalone()

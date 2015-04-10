@@ -105,9 +105,3 @@ class HardBounce(SchemaRegistryFailoverTest):
             prev_master_node.account.wait_for_http_service(
                 self.schema_registry.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
 
-
-if __name__ == "__main__":
-    MasterCleanFailover.run_standalone()
-    MasterHardFailover.run_standalone()
-    CleanBounce.run_standalone()
-    HardBounce.run_standalone()

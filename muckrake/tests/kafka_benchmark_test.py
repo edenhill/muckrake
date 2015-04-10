@@ -28,8 +28,6 @@ class KafkaBenchmark(KafkaTest):
         })
 
     def run(self):
-        self.setUp()
-
         msgs_default = 50000000
         msgs_large = 100000000
         msg_size_default = 100
@@ -153,9 +151,6 @@ class KafkaBenchmark(KafkaTest):
         )
         throughput_perf.run()
 
-
-        self.tearDown()
-
         # Summarize, extracting just the key info. With multiple
         # producers/consumers, we display the aggregate value
         def throughput(perf):
@@ -193,6 +188,3 @@ class KafkaBenchmark(KafkaTest):
         self.logger.info(" Producer: %s", throughput(pc_producer))
         self.logger.info(" Consumer: %s", throughput(pc_producer))
         self.logger.info("End-to-end latency: median %f ms, 99%% %f ms, 99.9%% %f ms", e2e_latency.results[0]['latency_50th_ms'], e2e_latency.results[0]['latency_99th_ms'], e2e_latency.results[0]['latency_999th_ms'])
-
-if __name__ == "__main__":
-    KafkaBenchmark.run_standalone()

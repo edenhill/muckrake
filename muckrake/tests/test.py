@@ -330,9 +330,6 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         return {"success": success, "message": message}
 
     def run(self):
-        # set up
-        self.setUp()
-
         # start schema registration in the background
         self.logger.info("Starting registration thread(s)")
         self.register_driver.start()
@@ -363,8 +360,6 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         self.report_summary()
 
         time.sleep(10)
-        self.tearDown()
-
 
 class HadoopTest(Test):
     """

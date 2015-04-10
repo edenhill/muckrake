@@ -14,3 +14,7 @@ schema-registry/
 camus/
 
 .DS_Store
+
+.ducktape
+
+*-test-results

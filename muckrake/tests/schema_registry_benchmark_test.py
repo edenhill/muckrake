@@ -20,8 +20,6 @@ class SchemaRegistryBenchmark(SchemaRegistryTest):
         super(SchemaRegistryBenchmark, self).__init__(cluster, num_zk=1, num_brokers=3, num_schema_registry=1)
 
     def run(self):
-        self.setUp()
-
         num_schema_registry = 1
         subject = "testSubject"
         num_schemas = 10000
@@ -34,12 +32,6 @@ class SchemaRegistryBenchmark(SchemaRegistryTest):
         self.logger.info("Running SchemaRegistryBenchmark: registering %d schemas on %d schema registry node." %
                          (num_schemas, num_schema_registry))
         schema_registry_perf.run()
-        self.tearDown()
-
         self.logger.info("Schema Registry performance: %f per sec, %f ms",
                          schema_registry_perf.results[0]['records_per_sec'],
                          schema_registry_perf.results[0]['latency_99th_ms'])
-
-
-if __name__ == "__main__":
-    SchemaRegistryBenchmark.run_standalone()

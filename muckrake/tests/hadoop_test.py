@@ -21,14 +21,8 @@ class HadoopV1SetupTest(HadoopTest):
         super(HadoopV1SetupTest, self).__init__(cluster, 2, hadoop_distro='cdh', hadoop_version=1)
 
     def run(self):
-        self.setUp()
         hadoop_perf = HadoopPerformanceService(self.cluster, 1, self.hadoop)
         hadoop_perf.run()
-        self.tearDown()
-
-
-if __name__ == "__main__":
-    HadoopV1SetupTest.run_standalone()
 
 
 class HadoopV2SetupTest(HadoopTest):
@@ -37,14 +31,8 @@ class HadoopV2SetupTest(HadoopTest):
         super(HadoopV2SetupTest, self).__init__(cluster, 2, hadoop_distro='cdh', hadoop_version=2)
 
     def run(self):
-        self.setUp()
         hadoop_perf = HadoopPerformanceService(self.cluster, 1, self.hadoop)
         hadoop_perf.run()
-        self.tearDown()
-
-
-if __name__ == "__main__":
-    HadoopV2SetupTest.run_standalone()
 
 
 class HDPSetupTest(HadoopTest):
@@ -53,11 +41,5 @@ class HDPSetupTest(HadoopTest):
         super(HDPSetupTest, self).__init__(cluster, 2, hadoop_distro='hdp', hadoop_version=2)
 
     def run(self):
-        self.setUp()
         hadoop_perf = HadoopPerformanceService(self.cluster, 1, self.hadoop)
         hadoop_perf.run()
-        self.tearDown()
-
-
-if __name__ == "__main__":
-    HDPSetupTest.run_standalone()
