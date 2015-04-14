@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from ducktape.services.service import Service
+
 import time, re, json
 from .schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
 from .kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
@@ -20,8 +21,12 @@ import abc
 
 
 class ZookeeperService(Service):
-    def __init__(self, cluster, num_nodes):
-        super(ZookeeperService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        """
+        super(ZookeeperService, self).__init__(service_context)
+        self.logs = {"zk_log": "/mnt/zk.log"}
 
     def start(self):
         super(ZookeeperService, self).start()
@@ -43,31 +48,46 @@ quorumListenOnAllIPs=true
             node.account.ssh("mkdir -p /mnt/zookeeper")
             node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
             node.account.create_file("/mnt/zookeeper.properties", config)
-            node.account.ssh("/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> /mnt/zk.log 2>> /mnt/zk.log &")
-            time.sleep(5) # give it some time to start
+            node.account.ssh(
+                "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(zk_log)s 2>> %(zk_log)s &"
+                % self.logs)
+            time.sleep(5)  # give it some time to start
 
-    def stop(self):
-        """If the service left any running processes or data, clean them up."""
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
-            self._stop_and_clean(node)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
+    def stop_node(self, node, allow_fail=True):
         # This uses Kafka-REST's stop service script because it's better behaved
         # (knows how to wait) and sends SIGTERM instead of
         # zookeeper-stop-server.sh's SIGINT. We don't actually care about clean
         # shutdown here, so it's ok to use the bigger hammer
+        idx = self.idx(node)
+        self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
         node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop-service zookeeper", allow_fail=allow_fail)
-        node.account.ssh("rm -rf /mnt/zookeeper /mnt/zookeeper.properties /mnt/zk.log")
+
+    def clean_node(self, node, allow_fail=True):
+        node.account.ssh("rm -rf /mnt/zookeeper /mnt/zookeeper.properties /mnt/zk.log", allow_fail=allow_fail)
+
+    def stop(self):
+        """If the service left any running processes or data, clean them up."""
+        for idx, node in enumerate(self.nodes, 1):
+            self.stop_node(node, allow_fail=False)
+            self.clean_node(node)
+            node.free()
+
+    def _stop_and_clean(self, node, allow_fail=False):
+        self.stop_node(node, allow_fail)
+        self.clean_node(node, allow_fail)
 
     def connect_setting(self):
         return ','.join([node.account.hostname + ':2181' for node in self.nodes])
 
 
 class KafkaService(Service):
-    def __init__(self, cluster, num_nodes, zk, topics=None):
-        super(KafkaService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, zk, topics=None):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type zk: ZookeeperService
+        :type topics: dict
+        """
+        super(KafkaService, self).__init__(service_context)
         self.zk = zk
         self.topics = topics
 
@@ -180,8 +200,14 @@ class KafkaService(Service):
 
 
 class KafkaRestService(Service):
-    def __init__(self, cluster, num_nodes, zk, kafka, schema_registry=None):
-        super(KafkaRestService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, zk, kafka, schema_registry=None):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type zk: ZookeeperService
+        :type kafka: KafkaService
+        :type schema_registry: SchemaRegistryService
+        """
+        super(KafkaRestService, self).__init__(service_context)
         self.zk = zk
         self.kafka = kafka
         self.schema_registry = schema_registry
@@ -228,8 +254,13 @@ class KafkaRestService(Service):
 
 
 class SchemaRegistryService(Service):
-    def __init__(self, cluster, num_nodes, zk, kafka):
-        super(SchemaRegistryService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, zk, kafka):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type zk: ZookeeperService
+        :type kafka: KafkaService
+        """
+        super(SchemaRegistryService, self).__init__(service_context)
         self.zk = zk
         self.kafka = kafka
         self.port = 8081
@@ -320,21 +351,26 @@ class SchemaRegistryService(Service):
         return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
 
 
-def create_hadoop_service(cluster, num_nodes, hadoop_distro, hadoop_version):
+def create_hadoop_service(service_context, hadoop_distro, hadoop_version):
     if hadoop_distro == 'cdh':
         hadoop_home = '/opt/hadoop-cdh/'
         if hadoop_version == 1:
-            return CDHV1Service(cluster, num_nodes, hadoop_home)
+            return CDHV1Service(service_context, hadoop_home)
         else:
-            return CDHV2Service(cluster, num_nodes, hadoop_home)
+            return CDHV2Service(service_context, hadoop_home)
     else:
         hadoop_home = '/usr/hdp/current/hadoop-hdfs-namenode/../hadoop/'
-        return HDPService(cluster, num_nodes, hadoop_home)
+        return HDPService(service_context, hadoop_home)
 
 
 class HDFSService(Service):
-    def __init__(self, cluster, num_nodes, hadoop_home, hadoop_distro):
-        super(HDFSService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, hadoop_home, hadoop_distro):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type hadoop_home: str
+        :type hadoop_distro: str
+        """
+        super(HDFSService, self).__init__(service_context)
         self.master_host = None
         self.slaves = []
         self.hadoop_home = hadoop_home
@@ -431,8 +467,12 @@ class HDFSService(Service):
 
 
 class CDHV1Service(HDFSService):
-    def __init__(self, cluster, num_nodes, hadoop_home):
-        super(CDHV1Service, self).__init__(cluster, num_nodes, hadoop_home, 'cdh')
+    def __init__(self, service_context, hadoop_home):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type hadoop_home: str
+        """
+        super(CDHV1Service, self).__init__(service_context, hadoop_home, 'cdh')
         self.hadoop_bin_dir = 'bin-mapreduce1'
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce1/hadoop-examples-2.5.0-mr1-cdh5.3.0.jar'
@@ -502,8 +542,12 @@ class CDHV1Service(HDFSService):
 
 
 class CDHV2Service(HDFSService):
-    def __init__(self, cluster, num_nodes, hadoop_home):
-        super(CDHV2Service, self).__init__(cluster, num_nodes, hadoop_home, 'cdh')
+    def __init__(self, service_context, hadoop_home):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type hadoop_home: str
+        """
+        super(CDHV2Service, self).__init__(service_context, hadoop_home, 'cdh')
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar'
 
@@ -580,8 +624,12 @@ class CDHV2Service(HDFSService):
 
 
 class HDPService(HDFSService):
-    def __init__(self, cluster, num_nodes, hadoop_home):
-        super(HDPService, self).__init__(cluster, num_nodes, hadoop_home, 'hdp')
+    def __init__(self, service_context, hadoop_home):
+        """
+        :type service_context ducktape.services.service.ServiceContext
+        :type hadoop_home: str
+        """
+        super(HDPService, self).__init__(service_context, hadoop_home, 'hdp')
         self.hadoop_example_jar = '/usr/hdp/current/hadoop-mapreduce-client/hadoop-mapreduce-examples-*.jar'
         self.yarn_bin_path = '/usr/hdp/current/hadoop-yarn-resourcemanager/'
         self.hdfs_bin_path = '/usr/hdp/current/hadoop-hdfs-namenode/'
