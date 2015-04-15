@@ -13,11 +13,14 @@
 # limitations under the License.
 
 from ducktape.tests.test import Test
+from ducktape.services.service import ServiceContext
+
 from muckrake.services.register_schemas_service import RegisterSchemasService
 from muckrake.services.schema_registry_utils import get_schema_by_id, get_all_versions, \
     get_schema_by_version, get_by_schema
-from muckrake.services.core import ZookeeperService, KafkaService, KafkaRestService, \
+from muckrake.services.core import ZookeeperService, KafkaRestService, \
     SchemaRegistryService, create_hadoop_service
+from muckrake.services.kafka_service import KafkaService
 import time
 import json
 
@@ -29,9 +32,11 @@ class KafkaTest(Test):
     needs to be done manually. Your run() method should call tearDown and
     setUp. The Zookeeper and Kafka services are available as the fields
     KafkaTest.zk and KafkaTest.kafka.
+
+
     """
-    def __init__(self, cluster, num_zk, num_brokers, topics=None):
-        super(KafkaTest, self).__init__(cluster)
+    def __init__(self, test_context, num_zk, num_brokers, topics=None):
+        super(KafkaTest, self).__init__(test_context)
         self.num_zk = num_zk
         self.num_brokers = num_brokers
         self.topics = topics
@@ -40,8 +45,11 @@ class KafkaTest(Test):
         return self.num_zk + self.num_brokers
 
     def setUp(self):
-        self.zk = ZookeeperService(self.cluster, self.num_zk)
-        self.kafka = KafkaService(self.cluster, self.num_brokers, self.zk, topics=self.topics)
+        self.zk = ZookeeperService(ServiceContext(self.cluster, self.num_zk, self.logger))
+        self.kafka = KafkaService(
+            ServiceContext(self.cluster, self.num_brokers, self.logger),
+            self.zk, topics=self.topics)
+        print "kafka: ", str(self.kafka)
         self.zk.start()
         self.kafka.start()
 
@@ -55,8 +63,8 @@ class RestProxyTest(KafkaTest):
     Helper class that manages setting up Kafka and the REST proxy. The REST proxy
     service is available as the field RestProxyTest.rest.
     """
-    def __init__(self, cluster, num_zk, num_brokers, num_rest, topics=None):
-        super(RestProxyTest, self).__init__(cluster, num_zk, num_brokers, topics=topics)
+    def __init__(self, test_context, num_zk, num_brokers, num_rest, topics=None):
+        super(RestProxyTest, self).__init__(test_context, num_zk, num_brokers, topics=topics)
         self.num_rest = num_rest
 
     def min_cluster_size(self):
@@ -64,7 +72,9 @@ class RestProxyTest(KafkaTest):
 
     def setUp(self):
         super(RestProxyTest, self).setUp()
-        self.rest = KafkaRestService(self.cluster, self.num_rest, self.zk, self.kafka)
+        self.rest = KafkaRestService(
+            ServiceContext(self.cluster, self.num_rest, self.logger),
+            self.zk, self.kafka)
         self.rest.start()
 
     def tearDown(self):
@@ -77,8 +87,8 @@ class SchemaRegistryTest(KafkaTest):
     Helper class that manages setting up Kafka and the Schema Registry proxy. The Schema Registry
     service is available as the field SchemaRegistryTest.schema_registry.
     """
-    def __init__(self, cluster, num_zk=1, num_brokers=1, num_schema_registry=1):
-        super(SchemaRegistryTest, self).__init__(cluster, num_zk, num_brokers, topics={"_schemas": {
+    def __init__(self, test_context, num_zk=1, num_brokers=1, num_schema_registry=1):
+        super(SchemaRegistryTest, self).__init__(test_context, num_zk, num_brokers, topics={"_schemas": {
             "name": "_schemas",
             "partitions": 1,
             "replication-factor": min(num_brokers, 3),
@@ -97,7 +107,9 @@ class SchemaRegistryTest(KafkaTest):
 
     def setUp(self):
         super(SchemaRegistryTest, self).setUp()
-        self.schema_registry = SchemaRegistryService(self.cluster, self.num_schema_registry, self.zk, self.kafka)
+        self.schema_registry = SchemaRegistryService(
+            ServiceContext(self.cluster, self.num_schema_registry, self.logger),
+            self.zk, self.kafka)
         self.schema_registry.start()
 
     def tearDown(self):
@@ -106,8 +118,8 @@ class SchemaRegistryTest(KafkaTest):
 
 
 class SchemaRegistryFailoverTest(SchemaRegistryTest):
-    def __init__(self, cluster, num_zk, num_brokers, num_schema_registry):
-        super(SchemaRegistryFailoverTest, self).__init__(cluster, num_zk, num_brokers, num_schema_registry)
+    def __init__(self, test_context, num_zk, num_brokers, num_schema_registry):
+        super(SchemaRegistryFailoverTest, self).__init__(test_context, num_zk, num_brokers, num_schema_registry)
 
         # Time to wait between registration retries
         self.retry_wait_sec = .2
@@ -120,8 +132,10 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
 
     def setUp(self):
         super(SchemaRegistryFailoverTest, self).setUp()
-        self.register_driver = RegisterSchemasService(self.cluster, 1, self.schema_registry, self.retry_wait_sec,
-                                                      self.num_retries, max_time_seconds=900)
+        self.register_driver = RegisterSchemasService(
+            ServiceContext(self.cluster, num_nodes=1, logger=self.logger), self.schema_registry,
+            self.retry_wait_sec,
+            self.num_retries, max_time_seconds=900)
 
     def drive_failures(self):
         raise NotImplementedError("drive_failures must be implemented by a subclass.")
@@ -366,10 +380,12 @@ class HadoopTest(Test):
     Helper class that manages setting up a Hadoop cluster. Your run() method should
     call tearDown and setUp.
     """
-    def __init__(self, cluster, num_hadoop, hadoop_distro='cdh', hadoop_version=2):
-        super(HadoopTest, self).__init__(cluster)
+    def __init__(self, test_context, num_hadoop, hadoop_distro='cdh', hadoop_version=2):
+        super(HadoopTest, self).__init__(test_context)
         self.num_hadoop = num_hadoop
-        self.hadoop = create_hadoop_service(cluster, num_hadoop, hadoop_distro, hadoop_version)
+        self.hadoop = create_hadoop_service(
+            ServiceContext(self.cluster, num_hadoop, self.logger),
+            hadoop_distro, hadoop_version)
 
     def min_cluster_size(self):
         return self.num_hadoop
@@ -382,9 +398,9 @@ class HadoopTest(Test):
 
 
 class CamusTest(Test):
-    def __init__(self, cluster, num_zk, num_brokers, num_hadoop, num_schema_registry, num_rest,
+    def __init__(self, test_context, num_zk, num_brokers, num_hadoop, num_schema_registry, num_rest,
                  hadoop_distro='cdh', hadoop_version=2, topics=None):
-        super(CamusTest, self).__init__(cluster)
+        super(CamusTest, self).__init__(test_context)
         self.num_zk = num_zk
         self.num_brokers = num_brokers
         self.num_hadoop = num_hadoop
@@ -398,11 +414,11 @@ class CamusTest(Test):
         return self.num_zk + self.num_brokers + self.num_hadoop + self.num_schema_registry + self.num_rest
 
     def setUp(self):
-        self.zk = ZookeeperService(self.cluster, self.num_zk)
-        self.kafka = KafkaService(self.cluster, self.num_brokers, self.zk, topics=self.topics)
-        self.hadoop = create_hadoop_service(self.cluster, self.num_hadoop, self.hadoop_distro, self.hadoop_version)
-        self.schema_registry = SchemaRegistryService(self.cluster, self.num_schema_registry, self.zk, self.kafka)
-        self.rest = KafkaRestService(self.cluster, self.num_rest, self.zk, self.kafka, self.schema_registry)
+        self.zk = ZookeeperService(ServiceContext(self.cluster, self.num_zk, self.logger))
+        self.kafka = KafkaService(ServiceContext(self.cluster, self.num_brokers, self.logger), self.zk, topics=self.topics)
+        self.hadoop = create_hadoop_service(ServiceContext(self.cluster, self.num_hadoop, self.logger), self.hadoop_distro, self.hadoop_version)
+        self.schema_registry = SchemaRegistryService(ServiceContext(self.cluster, self.num_schema_registry, self.logger), self.zk, self.kafka)
+        self.rest = KafkaRestService(ServiceContext(self.cluster, self.num_rest, self.logger), self.zk, self.kafka, self.schema_registry)
 
         self.zk.start()
         self.kafka.start()
