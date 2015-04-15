@@ -19,8 +19,6 @@ import random
 import time
 
 
-
-
 def parse_describe_topic(topic_description):
     """Parse output of kafka-topics.sh --describe, which is a string of form
     PartitionCount:2\tReplicationFactor:2\tConfigs:
@@ -54,23 +52,6 @@ def parse_describe_topic(topic_description):
     return {"partitions": partitions}
 
 
-def test_another_thing():
-    print "Testing 123"
-    assert False
-
-
-class TestStuff(object):
-
-    def test_reassign_partitions(self):
-        TestReassignPartitions.run_standalone()
-
-    def test_one_two_three(self):
-        assert False
-
-    def test_abc(self):
-        assert True
-
-
 class TestReassignPartitions(KafkaTest):
     """
     Begin registering schemas; part way through, cleanly kill the master.
@@ -91,9 +72,6 @@ class TestReassignPartitions(KafkaTest):
         super(TestReassignPartitions, self).tearDown()
 
     def run(self):
-        # validation ideas - validate multiple replicas on same broker?
-
-        # publish a bunch of messages (?)
 
         partition_info = parse_describe_topic(self.kafka.describe_topic("test_topic"))
         self.logger.debug("Partitions before reassignment:" + str(partition_info))
