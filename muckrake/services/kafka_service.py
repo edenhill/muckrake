@@ -147,6 +147,8 @@ class KafkaService(Service):
 
     def stop(self):
         """If the service left any running processes or data, clean them up."""
+        super(KafkaService, self).stop()
+        
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
             self._stop_and_clean(node, allow_fail=True)

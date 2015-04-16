@@ -67,6 +67,8 @@ quorumListenOnAllIPs=true
 
     def stop(self):
         """If the service left any running processes or data, clean them up."""
+        super(ZookeeperService, self).stop()
+
         for idx, node in enumerate(self.nodes, 1):
             self.stop_node(node, allow_fail=False)
             self.clean_node(node)
@@ -121,6 +123,8 @@ class KafkaRestService(Service):
             node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
 
     def stop(self):
+        super(KafkaRestService, self).stop()
+
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Stopping REST node %d on %s", idx, node.account.hostname)
             self._stop_and_clean(node)
@@ -167,6 +171,8 @@ class SchemaRegistryService(Service):
 
     def stop(self):
         """If the service left any running processes or data, clean them up."""
+        super(SchemaRegistryService, self).stop()
+
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
             self._stop_and_clean(node, True)
@@ -333,6 +339,8 @@ class HDFSService(Service):
             "--config /mnt/ start datanode")
 
     def stop(self):
+        super(HDFSService, self).stop()
+
         for idx, node in enumerate(self.nodes, 1):
             self._stop_and_clean_internal(node)
             node.free()
@@ -360,6 +368,7 @@ class CDHV1Service(HDFSService):
 
     def start(self):
         super(CDHV1Service, self).start()
+
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Stopping MRv1 on %s", node.account.hostname)
             self._stop_and_clean(node, allow_fail=True)
