@@ -17,8 +17,8 @@ from muckrake.services.performance import ProducerPerformanceService, RestProduc
     ConsumerPerformanceService, RestConsumerPerformanceService
 
 class NativeVsRestProducerPerformance(RestProxyTest):
-    def __init__(self, cluster):
-        super(NativeVsRestProducerPerformance, self).__init__(cluster, num_zk=1, num_brokers=1, num_rest=1, topics={
+    def __init__(self, test_context):
+        super(NativeVsRestProducerPerformance, self).__init__(test_context, num_zk=1, num_brokers=1, num_rest=1, topics={
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 },
         })
 
@@ -34,12 +34,12 @@ class NativeVsRestProducerPerformance(RestProxyTest):
             batch_size = 8196
 
         producer_perf = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-one", num_records=msgs, record_size=msg_size, throughput=-1,
             settings={'batch.size':batch_size, 'acks':acks}
         )
         rest_producer_perf = RestProducerPerformanceService(
-            self.cluster, 1, self.rest,
+            self.service_context(1), self.rest,
             topic="test-rep-one", num_records=msgs, record_size=msg_size, batch_size=batch_size, throughput=-1
         )
 
@@ -50,8 +50,8 @@ class NativeVsRestProducerPerformance(RestProxyTest):
         self.logger.info("REST Producer performance: %f per sec, %f ms", rest_producer_perf.results[0]['records_per_sec'], rest_producer_perf.results[0]['latency_99th_ms'])
 
 class NativeVsRestConsumerPerformance(RestProxyTest):
-    def __init__(self, cluster):
-        super(NativeVsRestConsumerPerformance, self).__init__(cluster, num_zk=1, num_brokers=1, num_rest=1, topics={
+    def __init__(self, test_context):
+        super(NativeVsRestConsumerPerformance, self).__init__(test_context, num_zk=1, num_brokers=1, num_rest=1, topics={
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 }
         })
 
@@ -71,18 +71,18 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
         # unless we have some extra messages -- the last set isn't getting
         # properly returned for some reason.
         producer = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test", num_records=msgs+1000, record_size=msg_size, throughput=-1,
             settings={'batch.size':batch_size, 'acks':acks}
         )
         producer.run()
 
         consumer_perf = ConsumerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test", num_records=msgs, throughput=-1, threads=nthreads
         )
         rest_consumer_perf = RestConsumerPerformanceService(
-            self.cluster, 1, self.rest,
+            self.service_context(1), self.rest,
             topic="test", num_records=msgs, throughput=-1
         )
         consumer_perf.run()

@@ -16,8 +16,8 @@ from .test import SchemaRegistryTest
 from muckrake.services.performance import SchemaRegistryPerformanceService
 
 class SchemaRegistryBenchmark(SchemaRegistryTest):
-    def __init__(self, cluster):
-        super(SchemaRegistryBenchmark, self).__init__(cluster, num_zk=1, num_brokers=3, num_schema_registry=1)
+    def __init__(self, test_context):
+        super(SchemaRegistryBenchmark, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
 
     def run(self):
         num_schema_registry = 1
@@ -26,7 +26,8 @@ class SchemaRegistryBenchmark(SchemaRegistryTest):
         schemas_per_sec = 1000
 
         schema_registry_perf = SchemaRegistryPerformanceService(
-            self.cluster, num_schema_registry, self.schema_registry, subject, num_schemas, schemas_per_sec, settings={}
+            self.service_context(num_schema_registry),
+            self.schema_registry, subject, num_schemas, schemas_per_sec, settings={}
         )
 
         self.logger.info("Running SchemaRegistryBenchmark: registering %d schemas on %d schema registry node." %

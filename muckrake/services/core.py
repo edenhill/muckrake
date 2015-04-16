@@ -14,7 +14,7 @@
 
 from ducktape.services.service import Service
 
-import time, re, json
+import time, re
 from .schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
 from .kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
 import abc
@@ -199,6 +199,7 @@ class SchemaRegistryService(Service):
         cmd = "/opt/schema-registry/bin/schema-registry-start /mnt/schema-registry.properties " \
             + "1>> /mnt/schema-registry.log 2>> /mnt/schema-registry.log &"
 
+        self.logger.debug("Attempting to start node with command: " + cmd)
         node.account.ssh(cmd)
 
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):

@@ -112,8 +112,6 @@ class KafkaService(Service):
         if re.match(".*is in progress.*", output) is not None:
             return False
 
-
-
         return True
 
     def execute_reassign_partitions(self, reassignment):
@@ -174,7 +172,9 @@ class KafkaService(Service):
             config = template % template_params
 
         node.account.create_file("/mnt/kafka.properties", config)
-        node.account.ssh("/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &")
+        cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
+        self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
+        node.account.ssh(cmd)
 
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):
         self.stop_node(node, clean_shutdown, allow_fail=True)
