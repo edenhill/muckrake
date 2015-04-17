@@ -17,29 +17,29 @@ from muckrake.services.performance import HadoopPerformanceService
 
 class HadoopV1SetupTest(HadoopTest):
 
-    def __init__(self, cluster):
-        super(HadoopV1SetupTest, self).__init__(cluster, 2, hadoop_distro='cdh', hadoop_version=1)
+    def __init__(self, test_context):
+        super(HadoopV1SetupTest, self).__init__(test_context, 2, hadoop_distro='cdh', hadoop_version=1)
 
     def run(self):
-        hadoop_perf = HadoopPerformanceService(self.cluster, 1, self.hadoop)
+        hadoop_perf = HadoopPerformanceService(self.service_context(1), self.hadoop)
         hadoop_perf.run()
 
 
 class HadoopV2SetupTest(HadoopTest):
 
-    def __init__(self, cluster):
-        super(HadoopV2SetupTest, self).__init__(cluster, 2, hadoop_distro='cdh', hadoop_version=2)
+    def __init__(self, test_context):
+        super(HadoopV2SetupTest, self).__init__(test_context, 2, hadoop_distro='cdh', hadoop_version=2)
 
     def run(self):
-        hadoop_perf = HadoopPerformanceService(self.cluster, 1, self.hadoop)
+        hadoop_perf = HadoopPerformanceService(self.service_context(1), self.hadoop)
         hadoop_perf.run()
 
 
 class HDPSetupTest(HadoopTest):
 
-    def __init__(self, cluster):
-        super(HDPSetupTest, self).__init__(cluster, 2, hadoop_distro='hdp', hadoop_version=2)
+    def __init__(self, test_context):
+        super(HDPSetupTest, self).__init__(test_context, 2, hadoop_distro='hdp', hadoop_version=2)
 
     def run(self):
-        hadoop_perf = HadoopPerformanceService(self.cluster, 1, self.hadoop)
+        hadoop_perf = HadoopPerformanceService(self.service_context(1), self.hadoop)
         hadoop_perf.run()

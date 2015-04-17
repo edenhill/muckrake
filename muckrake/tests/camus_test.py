@@ -22,9 +22,9 @@ class CamusHadoopV1Test(CamusTest):
     CamusPerformance 1
     """
 
-    def __init__(self, cluster):
+    def __init__(self, test_context):
         super(CamusHadoopV1Test, self).__init__(
-            cluster,
+            test_context,
             num_zk=1,
             num_brokers=1,
             num_hadoop=2,
@@ -43,7 +43,8 @@ class CamusHadoopV1Test(CamusTest):
         self.logger.info("Running Camus example on Hadoop distribution %s, Hadoop version %d",
                          self.hadoop_distro, self.hadoop_version)
         camus_perf = CamusPerformanceService(
-            self.cluster, self.num_camus_perf, self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
+            self.service_context(self.num_camus_perf),
+            self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
         camus_perf.run()
 
 
@@ -54,9 +55,9 @@ class CamusHadoopV2Test(CamusTest):
     CamusPerformance 1
     """
 
-    def __init__(self, cluster):
+    def __init__(self, test_context):
         super(CamusHadoopV2Test, self).__init__(
-            cluster,
+            test_context,
             num_zk=1,
             num_brokers=1,
             num_hadoop=2,
@@ -75,7 +76,8 @@ class CamusHadoopV2Test(CamusTest):
         self.logger.info("Running Camus example on Hadoop distribution %s, Hadoop version %d",
                          self.hadoop_distro, self.hadoop_version)
         camus_perf = CamusPerformanceService(
-            self.cluster, self.num_camus_perf, self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
+            self.service_context(self.num_camus_perf),
+            self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
         camus_perf.run()
 
 
@@ -86,9 +88,9 @@ class CamusHDPTest(CamusTest):
     CamusPerformance 1
     """
 
-    def __init__(self, cluster):
+    def __init__(self, test_context):
         super(CamusHDPTest, self).__init__(
-            cluster,
+            test_context,
             num_zk=1,
             num_brokers=1,
             num_hadoop=2,
@@ -107,5 +109,6 @@ class CamusHDPTest(CamusTest):
         self.logger.info("Running Camus example on Hadoop distribution %s, Hadoop version %d",
                          self.hadoop_distro, self.hadoop_version)
         camus_perf = CamusPerformanceService(
-            self.cluster, self.num_camus_perf, self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
+            self.service_context(self.num_camus_perf),
+            self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
         camus_perf.run()

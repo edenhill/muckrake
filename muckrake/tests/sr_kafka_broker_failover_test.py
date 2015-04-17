@@ -24,8 +24,8 @@ class KafkaLeaderCleanFailover(SchemaRegistryFailoverTest):
     """
     Begin registering schemas; part way through, cleanly kill the leader node for "_schemas" topic.
     """
-    def __init__(self, cluster):
-        super(KafkaLeaderCleanFailover, self).__init__(cluster, num_zk=1, num_brokers=3, num_schema_registry=1)
+    def __init__(self, test_context):
+        super(KafkaLeaderCleanFailover, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
 
         self.retry_wait_sec = .02
         self.num_retries = 100
@@ -40,8 +40,8 @@ class KafkaLeaderHardFailover(SchemaRegistryFailoverTest):
     """
     Begin registering schemas; part way through, kill -9 the leader node for "_schemas" topic
     """
-    def __init__(self, cluster):
-        super(KafkaLeaderHardFailover, self).__init__(cluster, num_zk=1, num_brokers=3, num_schema_registry=1)
+    def __init__(self, test_context):
+        super(KafkaLeaderHardFailover, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
 
         self.retry_wait_sec = .1
         self.num_retries = 110
@@ -53,8 +53,8 @@ class KafkaLeaderHardFailover(SchemaRegistryFailoverTest):
 
 
 class KafkaBrokerCleanBounce(SchemaRegistryFailoverTest):
-    def __init__(self, cluster):
-        super(KafkaBrokerCleanBounce, self).__init__(cluster, num_zk=1, num_brokers=3, num_schema_registry=1)
+    def __init__(self, test_context):
+        super(KafkaBrokerCleanBounce, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
 
         self.retry_wait_sec = .02
         self.num_retries = 100
@@ -70,8 +70,8 @@ class KafkaBrokerCleanBounce(SchemaRegistryFailoverTest):
 
 
 class KafkaBrokerHardBounce(SchemaRegistryFailoverTest):
-    def __init__(self, cluster):
-        super(KafkaBrokerHardBounce, self).__init__(cluster, num_zk=1, num_brokers=3, num_schema_registry=1)
+    def __init__(self, test_context):
+        super(KafkaBrokerHardBounce, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
 
         self.retry_wait_sec = .3
         self.num_retries = 100

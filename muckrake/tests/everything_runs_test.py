@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from ducktape.tests.test import Test
+
 from muckrake.services.core import ZookeeperService
-from muckrake.services.core import KafkaService
+from muckrake.services.kafka_service import KafkaService
 from muckrake.services.core import KafkaRestService
 from muckrake.services.core import SchemaRegistryService
 from muckrake.services.register_schemas_service import RegisterSchemasService
@@ -23,8 +24,8 @@ from muckrake.services.register_schemas_service import RegisterSchemasService
 class EverythingRunsTest(Test):
     """ Sanity check to ensure that various core services all run.
     """
-    def __init__(self, cluster):
-        self.cluster = cluster
+    def __init__(self, test_context):
+        super(EverythingRunsTest, self).__init__(test_context=test_context)
         self.num_zk = 1
         self.num_brokers = 1
         self.num_rest = 1
@@ -35,21 +36,26 @@ class EverythingRunsTest(Test):
         return self.num_zk + self.num_brokers + self.num_rest + self.num_schema_registry + self.num_register_driver
 
     def run(self):
-        self.zk = ZookeeperService(self.cluster, self.num_zk)
+        self.zk = ZookeeperService(self.service_context(self.num_zk))
         self.zk.start()
 
-        self.kafka = KafkaService(self.cluster, self.num_brokers, self.zk)
+        self.kafka = KafkaService(self.service_context(self.num_brokers), self.zk)
         self.kafka.start()
 
-        self.schema_registry = SchemaRegistryService(self.cluster, self.num_schema_registry, self.zk, self.kafka)
+        self.schema_registry = SchemaRegistryService(
+            self.service_context(self.num_schema_registry), self.zk, self.kafka)
         self.schema_registry.start()
 
-        self.rest_proxy = KafkaRestService(self.cluster, self.num_rest, self.zk, self.kafka, self.schema_registry)
+        self.rest_proxy = KafkaRestService(
+            self.service_context(self.num_rest), self.zk, self.kafka, self.schema_registry)
         self.rest_proxy.start()
 
-        self.register_driver = RegisterSchemasService(self.cluster, self.num_register_driver, self.schema_registry,
-                                                      retry_wait_sec=.02, num_tries=5,
-                                                      max_time_seconds=10, max_schemas=50)
+        self.register_driver = RegisterSchemasService(
+            self.service_context(self.num_register_driver),
+            self.schema_registry,
+            retry_wait_sec=.02, num_tries=5,
+            max_time_seconds=10, max_schemas=50)
+
         self.register_driver.start()
         self.register_driver.wait()
         self.register_driver.stop()

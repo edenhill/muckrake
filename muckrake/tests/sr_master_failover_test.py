@@ -26,8 +26,8 @@ class MasterCleanFailover(SchemaRegistryFailoverTest):
     """
     Begin registering schemas; part way through, cleanly kill the master.
     """
-    def __init__(self, cluster):
-        super(MasterCleanFailover, self).__init__(cluster, num_zk=1, num_brokers=1, num_schema_registry=3)
+    def __init__(self, test_context):
+        super(MasterCleanFailover, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
 
         # Expect leader reelection to take less than .2 sec in a clean shutdown
         self.retry_wait_sec = .02
@@ -46,8 +46,8 @@ class MasterHardFailover(SchemaRegistryFailoverTest):
     """
     Begin registering schemas; part way through, hard kill the master (kill -9)
     """
-    def __init__(self, cluster):
-        super(MasterHardFailover, self).__init__(cluster, num_zk=1, num_brokers=1, num_schema_registry=3)
+    def __init__(self, test_context):
+        super(MasterHardFailover, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
 
         # Default zookeeper session timeout is 10 seconds
         self.retry_wait_sec = .1
@@ -63,8 +63,8 @@ class MasterHardFailover(SchemaRegistryFailoverTest):
 
 
 class CleanBounce(SchemaRegistryFailoverTest):
-    def __init__(self, cluster):
-        super(CleanBounce, self).__init__(cluster, num_zk=1, num_brokers=1, num_schema_registry=3)
+    def __init__(self, test_context):
+        super(CleanBounce, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
 
         # Expect leader reelection to take less than .2 sec in a clean shutdown
         self.retry_wait_sec = .02
@@ -85,8 +85,8 @@ class CleanBounce(SchemaRegistryFailoverTest):
 
 
 class HardBounce(SchemaRegistryFailoverTest):
-    def __init__(self, cluster):
-        super(HardBounce, self).__init__(cluster, num_zk=1, num_brokers=1, num_schema_registry=3)
+    def __init__(self, test_context):
+        super(HardBounce, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
 
         # Expect leader reelection to take less than .2 sec in a clean shutdown
         self.retry_wait_sec = .3

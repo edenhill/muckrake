@@ -21,8 +21,8 @@ class KafkaBenchmark(KafkaTest):
     run here:
     https://engineering.linkedin.com/kafka/benchmarking-apache-kafka-2-million-writes-second-three-cheap-machines
     '''
-    def __init__(self, cluster):
-        super(KafkaBenchmark, self).__init__(cluster, num_zk=1, num_brokers=3, topics={
+    def __init__(self, test_context):
+        super(KafkaBenchmark, self).__init__(test_context, num_zk=1, num_brokers=3, topics={
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 },
             'test-rep-three' : { 'partitions': 6, 'replication-factor': 3 }
         })
@@ -51,7 +51,7 @@ class KafkaBenchmark(KafkaTest):
 
         self.logger.info("BENCHMARK: Single producer, no replication")
         single_no_rep = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-one", num_records=msgs_default, record_size=msg_size_default, throughput=-1,
             settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
         )
@@ -59,7 +59,7 @@ class KafkaBenchmark(KafkaTest):
 
         self.logger.info("BENCHMARK: Single producer, async 3x replication")
         single_rep_async = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=msgs_default, record_size=msg_size_default, throughput=-1,
             settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
         )
@@ -67,7 +67,7 @@ class KafkaBenchmark(KafkaTest):
 
         self.logger.info("BENCHMARK: Single producer, sync 3x replication")
         single_rep_sync = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=msgs_default, record_size=msg_size_default, throughput=-1,
             settings={'acks':-1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
         )
@@ -75,7 +75,7 @@ class KafkaBenchmark(KafkaTest):
 
         self.logger.info("BENCHMARK: Three producers, async 3x replication")
         three_rep_async = ProducerPerformanceService(
-            self.cluster, 3, self.kafka,
+            self.service_context(3), self.kafka,
             topic="test-rep-three", num_records=msgs_default, record_size=msg_size_default, throughput=-1,
             settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
         )
@@ -88,7 +88,7 @@ class KafkaBenchmark(KafkaTest):
             # Always generate the same total amount of data
             nrecords = int(target_data_size / msg_size)
             perf = ProducerPerformanceService(
-                self.cluster, 1, self.kafka,
+                self.service_context(1), self.kafka,
                 topic="test-rep-three", num_records=nrecords, record_size=msg_size, throughput=-1,
                 settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
             )
@@ -101,14 +101,14 @@ class KafkaBenchmark(KafkaTest):
         # they'll get messages of the default message size
         self.logger.info("BENCHMARK: Single consumer")
         single_consumer = ConsumerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=msgs_default, throughput=-1, threads=1
         )
         single_consumer.run()
 
         self.logger.info("BENCHMARK: Three consumers")
         three_consumers = ConsumerPerformanceService(
-            self.cluster, 3, self.kafka,
+            self.service_context(3), self.kafka,
             topic="test-rep-three", num_records=msgs_default, throughput=-1, threads=1
         )
         three_consumers.run()
@@ -116,12 +116,12 @@ class KafkaBenchmark(KafkaTest):
         # PRODUCER + CONSUMER TEST
         self.logger.info("BENCHMARK: Producer + Consumer")
         pc_producer = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=msgs_default, record_size=msg_size_default, throughput=-1,
             settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
         )
         pc_consumer = ConsumerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=msgs_default, throughput=-1, threads=1
         )
         Service.run_parallel(pc_producer, pc_consumer)
@@ -129,7 +129,7 @@ class KafkaBenchmark(KafkaTest):
         # END TO END LATENCY TEST
         self.logger.info("BENCHMARK: End to end latency")
         e2e_latency = EndToEndLatencyService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=10000
         )
         e2e_latency.run()
@@ -144,7 +144,7 @@ class KafkaBenchmark(KafkaTest):
         self.setUp()
         self.logger.info("BENCHMARK: Long production")
         throughput_perf = ProducerPerformanceService(
-            self.cluster, 1, self.kafka,
+            self.service_context(1), self.kafka,
             topic="test-rep-three", num_records=msgs_large, record_size=msg_size_default, throughput=-1,
             settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory},
             intermediate_stats=True

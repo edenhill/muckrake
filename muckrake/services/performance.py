@@ -19,6 +19,9 @@ import json
 
 
 class PerformanceService(Service):
+    def __init__(self, service_context):
+        super(PerformanceService, self).__init__(service_context)
+
     def start(self):
         super(PerformanceService, self).start()
         self.worker_threads = []
@@ -51,8 +54,8 @@ class PerformanceService(Service):
 
 
 class ProducerPerformanceService(PerformanceService):
-    def __init__(self, cluster, num_nodes, kafka, topic, num_records, record_size, throughput, settings={}, intermediate_stats=False):
-        super(ProducerPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, kafka, topic, num_records, record_size, throughput, settings={}, intermediate_stats=False):
+        super(ProducerPerformanceService, self).__init__(service_context)
         self.kafka = kafka
         self.args = {
             'topic': topic,
@@ -102,8 +105,8 @@ class ProducerPerformanceService(PerformanceService):
 
 
 class RestProducerPerformanceService(PerformanceService):
-    def __init__(self, cluster, num_nodes, rest, topic, num_records, record_size, batch_size, throughput, settings={}):
-        super(RestProducerPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, rest, topic, num_records, record_size, batch_size, throughput, settings={}):
+        super(RestProducerPerformanceService, self).__init__(service_context)
         self.rest = rest
         self.args = {
             'topic': topic,
@@ -145,8 +148,8 @@ class RestProducerPerformanceService(PerformanceService):
 
 
 class ConsumerPerformanceService(PerformanceService):
-    def __init__(self, cluster, num_nodes, kafka, topic, num_records, throughput, threads=1, settings={}):
-        super(ConsumerPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, kafka, topic, num_records, throughput, threads=1, settings={}):
+        super(ConsumerPerformanceService, self).__init__(service_context)
         self.kafka = kafka
         self.args = {
             'topic': topic,
@@ -178,8 +181,8 @@ class ConsumerPerformanceService(PerformanceService):
 
 
 class RestConsumerPerformanceService(PerformanceService):
-    def __init__(self, cluster, num_nodes, rest, topic, num_records, throughput, settings={}):
-        super(RestConsumerPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, rest, topic, num_records, throughput, settings={}):
+        super(RestConsumerPerformanceService, self).__init__(service_context)
         self.rest = rest
         self.args = {
             'topic': topic,
@@ -207,8 +210,8 @@ class RestConsumerPerformanceService(PerformanceService):
 
 
 class SchemaRegistryPerformanceService(PerformanceService):
-    def __init__(self, cluster, num_nodes, schema_registry, subject, num_schemas, schemas_per_sec, settings={}):
-        super(SchemaRegistryPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, schema_registry, subject, num_schemas, schemas_per_sec, settings={}):
+        super(SchemaRegistryPerformanceService, self).__init__(service_context)
         self.schema_registry = schema_registry
 
         self.args = {
@@ -241,8 +244,8 @@ class HadoopPerformanceService(PerformanceService):
     """
     This is a simple MapReduce job that makes sure that Hadoop is setup correctly
     """
-    def __init__(self, cluster, num_nodes, hadoop, settings={}):
-        super(HadoopPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, hadoop, settings={}):
+        super(HadoopPerformanceService, self).__init__(service_context)
         self.hadoop = hadoop
         self.settings = settings
 
@@ -271,8 +274,8 @@ class HadoopPerformanceService(PerformanceService):
 
 
 class CamusPerformanceService(PerformanceService):
-    def __init__(self, cluster, num_nodes, kafka, hadoop, schema_registry, rest, settings={}):
-        super(CamusPerformanceService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, kafka, hadoop, schema_registry, rest, settings={}):
+        super(CamusPerformanceService, self).__init__(service_context)
         self.kafka = kafka
         self.hadoop = hadoop
         self.schema_registry = schema_registry
@@ -403,8 +406,8 @@ class CamusPerformanceService(PerformanceService):
 
 
 class EndToEndLatencyService(PerformanceService):
-    def __init__(self, cluster, num_nodes, kafka, topic, num_records, consumer_fetch_max_wait=100, acks=1):
-        super(EndToEndLatencyService, self).__init__(cluster, num_nodes)
+    def __init__(self, service_context, kafka, topic, num_records, consumer_fetch_max_wait=100, acks=1):
+        super(EndToEndLatencyService, self).__init__(service_context)
         self.kafka = kafka
         self.args = {
             'topic': topic,
