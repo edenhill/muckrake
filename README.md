@@ -3,31 +3,60 @@ Confluent Platform system tests
 System Integration & Performance Testing
 ========================================
 
-This repository contains scripts for running system integraton and performance
-tests. It provides utilities for pulling up and tearing down services
-easily, using Vagrant to let you test things on local VMs or run on EC2
-nodes. Tests are just Python scripts that run a set of services, possibly
-triggering special events (e.g. bouncing a service), collect results (such as
-logs or console output) and report results (expected conditions met, performance
-results, etc.).
+This repository contains system tests for the Confluent Platform as well as a few scripts to help
+set up a Vagrant cluster provisioned with all of the repositories in the Confluent
+Platform. The system tests should be run using ducktape (see https://github.com/confluentinc/ducktape/
+for installation instructions).
 
-1. Use the `build.sh` script to make sure you have all the projects checked out
-   and built against the specified versions.
-2. Configure your Vagrant setup by creating the file `Vagrantfile.local`. At a
-   minimum, you *MUST* set the value of num_workers high enough for the tests
-   you're trying to run.
-3. Bring up the cluster with Vagrant for testing, making sure you have enough
-   workers, with `vagrant up`. If you want to run on AWS, use `vagrant up
-   --provider=aws --no-parallel`.
-4. Run one or more tests. Individual tests can be run directly:
 
-        $ python -m tests.native_vs_rest_performance
+Muckrake set up
+---------------
+In order to run the muckrake system tests using ducktape, a few preparatory steps are necessary.
 
-   There isn't yet a test runner to run all scripts in sequence.
-5. To iterate/run again if you already initialized the repositories:
+* Get muckrake and ducktape the base directory doesn't matter):
+``` 
+    git clone git@github.com:confluentinc/muckrake.git
+    git clone git@github.com:confluentinc/ducktape.git
+    cd ducktape && python setup.py install # Now you can run ducktape!
+```
 
-        $ build.sh --update
-        $ vagrant rsync # Re-syncs build output to cluster
+
+* Download and install the Confluent projects within muckrake directory. This provides a mechanism to help provision the machines in your Vagrant cluster with Confluent binaries, scripts etc. (If you already initialized the repositories and want to update, instead run `./build.sh --update && vagrant rsync`)
+``` 
+    cd muckrake
+    ./build.sh # check out and build Confluent projects against specified version
+```
+   
+* Configure Vagrant by creating the file `Vagrantfile.local`. At minimum this needs `enabled_dns = true` and `num_workers = <enough workers to run your tests>`.
+```
+    # example Vagrantfile.local
+    enable_dns = true
+    num_workers = 7  # This should be set high enough
+```    
+
+* Bring up the Vagrant cluster
+```
+    # Run this command if you're testing on your local machine
+    vagrant up 
+    
+    # Run this command if you're on aws
+    # vagrant provision is only necessary the first time you bring up your Vagrant cluster
+    vagrant up --provider=aws --no-parallel && vagrant provision
+    
+```
+
+Run tests
+---------
+* Run one or more tests with ducktape. 
+```    
+    # Run tests in a file
+    duckape muckrake/tests/test_my_system_test.py
+    
+    # Run tests in a directory (search recursively)
+    ducktape muckrake/tests
+```
+Summary results are printed to screen and output into `./results`. The most recent test results are sym-linked from `./results/latest`.
+
 
 Adding New Repositories
 -----------------------
