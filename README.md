@@ -13,7 +13,7 @@ Muckrake set up
 ---------------
 In order to run the muckrake system tests using ducktape, a few preparatory steps are necessary.
 
-* Get muckrake and ducktape the base directory doesn't matter):
+* Get muckrake and ducktape (the base directory doesn't matter):
 ``` 
     git clone git@github.com:confluentinc/muckrake.git
     git clone git@github.com:confluentinc/ducktape.git
