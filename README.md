@@ -32,7 +32,16 @@ In order to run the muckrake system tests using ducktape, a few preparatory step
     # example Vagrantfile.local
     enable_dns = true
     num_workers = 7  # This should be set high enough
-```    
+```
+
+* Ensure your Vagrant installation has the necessary plugins.
+```
+    # Check that vagrant-hostmanager is in your list of installed plugins
+    vagrant plugin list | grep vagrant-hostmanager
+    
+    # If it's not there, you'll need to install:
+    vagrant plugin install vagrant-hostmanager
+```
 
 * Bring up the Vagrant cluster
 ```
