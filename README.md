@@ -63,8 +63,14 @@ Run tests
     
     # Run tests in a directory (search recursively)
     ducktape muckrake/tests
+    
+    # See which tests will be run without actually running any
+    ducktape muckrake/tests --collect-only
 ```
+
 Summary results are printed to screen and output into `./results`. The most recent test results are sym-linked from `./results/latest`.
+
+If you find that tests are never getting loaded, you may be experiencing https://github.com/confluentinc/ducktape/issues/32. Some users have trouble with the test loader due to the muckrake directory not being in the module search path (`sys.path`). As a temporary work-around, add this line to your bashrc: `export PYTHONPATH=$PYTHONPATH:<path_to_muckrake>`
 
 
 Adding New Repositories
