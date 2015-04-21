@@ -56,7 +56,7 @@ In order to run the muckrake system tests using ducktape, a few preparatory step
 
 Run tests
 ---------
-* Run one or more tests with ducktape. 
+Run one or more tests with ducktape. 
 ```    
     # Run tests in a file
     duckape muckrake/tests/test_my_system_test.py
