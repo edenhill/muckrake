@@ -49,7 +49,6 @@ class KafkaTest(Test):
         self.kafka = KafkaService(
             ServiceContext(self.cluster, self.num_brokers, self.logger),
             self.zk, topics=self.topics)
-        print "kafka: ", str(self.kafka)
         self.zk.start()
         self.kafka.start()
 
