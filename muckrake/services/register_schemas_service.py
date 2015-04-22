@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.services.service import Service
+from muckrake.services.background_thread_service import BackgroundThreadService
+
 from .schema_registry_utils import *
-import time, threading
+import threading
+import time
 
 
-class RegisterSchemasService(Service):
+class RegisterSchemasService(BackgroundThreadService):
 
     """ This class is meant to register a bunch of schemas in one or more background threads.
     To date, it is used in several different failover tests to concurrently send registration requests to a
@@ -71,34 +73,6 @@ class RegisterSchemasService(Service):
 
         self.worker_threads = []
 
-    def start(self):
-        super(RegisterSchemasService, self).start()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Running %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
-            worker = threading.Thread(
-                name=self.__class__.__name__ + "-worker-" + str(idx),
-                target=self._worker,
-                args=(idx, node)
-            )
-            worker.daemon = True
-            worker.start()
-            self.worker_threads.append(worker)
-
-    def wait(self):
-        super(RegisterSchemasService, self).wait()
-        for idx, worker in enumerate(self.worker_threads, 1):
-            self.logger.debug("Waiting for %s worker %d to finish", self.__class__.__name__, idx)
-            worker.join()
-        self.worker_threads = None
-
-    def stop(self):
-        super(RegisterSchemasService, self).stop()
-        assert self.worker_threads is None, "%s.stop should only be called after wait" % self.__class__.__name__
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.debug("Stopping %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
-            node.free()
-
     def _worker(self, idx, node):
         # Set global schema compatibility requirement to NONE
         self.logger.debug("Changing compatibility requirement on %s" % self.schema_registry.url(1))
@@ -110,6 +84,8 @@ class RegisterSchemasService(Service):
         while True:
             elapsed = time.time() - start
             self.ready_to_finish = self.ready_to_finish or elapsed > self.max_time_seconds or i >= self.max_schemas
+
+            # Break out of loop and finish when ready
             if self.ready_to_finish:
                 break
 

@@ -20,68 +20,6 @@ from .kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
 import abc
 
 
-class ZookeeperService(Service):
-    def __init__(self, service_context):
-        """
-        :type service_context ducktape.services.service.ServiceContext
-        """
-        super(ZookeeperService, self).__init__(service_context)
-        self.logs = {"zk_log": "/mnt/zk.log"}
-
-    def start(self):
-        super(ZookeeperService, self).start()
-        config = """
-dataDir=/mnt/zookeeper
-clientPort=2181
-maxClientCnxns=0
-initLimit=5
-syncLimit=2
-quorumListenOnAllIPs=true
-"""
-        for idx, node in enumerate(self.nodes, 1):
-            template_params = { 'idx': idx, 'host': node.account.hostname }
-            config += "server.%(idx)d=%(host)s:2888:3888\n" % template_params
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting ZK node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            node.account.ssh("mkdir -p /mnt/zookeeper")
-            node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
-            node.account.create_file("/mnt/zookeeper.properties", config)
-            node.account.ssh(
-                "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(zk_log)s 2>> %(zk_log)s &"
-                % self.logs)
-            time.sleep(5)  # give it some time to start
-
-    def stop_node(self, node, allow_fail=True):
-        # This uses Kafka-REST's stop service script because it's better behaved
-        # (knows how to wait) and sends SIGTERM instead of
-        # zookeeper-stop-server.sh's SIGINT. We don't actually care about clean
-        # shutdown here, so it's ok to use the bigger hammer
-        idx = self.idx(node)
-        self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
-        node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop-service zookeeper", allow_fail=allow_fail)
-
-    def clean_node(self, node, allow_fail=True):
-        node.account.ssh("rm -rf /mnt/zookeeper /mnt/zookeeper.properties /mnt/zk.log", allow_fail=allow_fail)
-
-    def stop(self):
-        """If the service left any running processes or data, clean them up."""
-        super(ZookeeperService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.stop_node(node, allow_fail=False)
-            self.clean_node(node)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
-        self.stop_node(node, allow_fail)
-        self.clean_node(node, allow_fail)
-
-    def connect_setting(self):
-        return ','.join([node.account.hostname + ':2181' for node in self.nodes])
-
-
 class KafkaRestService(Service):
     def __init__(self, service_context, zk, kafka, schema_registry=None):
         """
@@ -96,43 +34,43 @@ class KafkaRestService(Service):
         self.schema_registry = schema_registry
         self.port = 8082
 
-    def start(self):
-        super(KafkaRestService, self).start()
+        self.logs = {"rest_log": "/mnt/rest.log"}
+
+    def start_node(self, node):
         template = open('templates/rest.properties').read()
         zk_connect = self.zk.connect_setting()
         bootstrapServers = self.kafka.bootstrap_servers()
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting REST node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            template_params = {
-                'id': idx,
-                'port': self.port,
-                'zk_connect': zk_connect,
-                'bootstrap_servers': bootstrapServers,
-                'schema_registry_url': None
-            }
+        idx = self.idx(node)
 
-            if self.schema_registry is not None:
-                template_params.update({'schema_registry_url': self.schema_registry.url()})
+        self.logger.info("Starting REST node %d on %s", idx, node.account.hostname)
+        template_params = {
+            'id': idx,
+            'port': self.port,
+            'zk_connect': zk_connect,
+            'bootstrap_servers': bootstrapServers,
+            'schema_registry_url': None
+        }
 
-            self.logger.info("Schema registry url for Kafka rest proxy is %s", template_params['schema_registry_url'])
-            config = template % template_params
-            node.account.create_file("/mnt/rest.properties", config)
-            node.account.ssh("/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> /mnt/rest.log 2>> /mnt/rest.log &")
+        if self.schema_registry is not None:
+            template_params.update({'schema_registry_url': self.schema_registry.url()})
 
-            node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
+        self.logger.info("Schema registry url for Kafka rest proxy is %s", template_params['schema_registry_url'])
+        config = template % template_params
+        node.account.create_file("/mnt/rest.properties", config)
+        node.account.ssh(
+            "/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> %(rest_log)s 2>> %(rest_log)s &" % self.logs)
 
-    def stop(self):
-        super(KafkaRestService, self).stop()
+    def wait_until_alive(self, node):
+        # Block until we get a response from the service
+        node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
 
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping REST node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node)
-            node.free()
+    def stop_node(self, node):
+        self.logger.info("Stopping REST node %d on %s", self.idx(node), node.account.hostname)
+        node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop", allow_fail=True)
 
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop", allow_fail=allow_fail)
-        node.account.ssh("rm -rf /mnt/rest.properties /mnt/rest.log")
+    def clean_node(self, node):
+        self.logger.info("Cleaning REST node %d on %s", self.idx(node), node.account.hostname)
+        node.account.ssh("rm -rf /mnt/rest.properties %(rest_log)s" % self.logs, allow_fail=True)
 
     def url(self, idx=1):
         return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
@@ -150,42 +88,16 @@ class SchemaRegistryService(Service):
         self.kafka = kafka
         self.port = 8081
 
-    def start(self):
-        super(SchemaRegistryService, self).start()
-
+    def start_node(self, node):
+        self.logger.info("Starting Schema Registry node %d on %s", self.idx(node), node.account.hostname)
         template = open('templates/schema-registry.properties').read()
         template_params = {
             'kafkastore_topic': '_schemas',
             'kafkastore_url': self.zk.connect_setting(),
             'rest_port': self.port
         }
+
         config = template % template_params
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting Schema Registry node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            self.start_node(node, config)
-
-            # Wait for the server to become live
-            node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
-
-    def stop(self):
-        """If the service left any running processes or data, clean them up."""
-        super(SchemaRegistryService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
-            self._stop_and_clean(node, True)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("/opt/schema-registry/bin/schema-registry-stop", allow_fail=allow_fail)
-        node.account.ssh("rm -rf /mnt/schema-registry.properties /mnt/schema-registry.log")
-
-    def stop_node(self, node, clean_shutdown=True, allow_fail=True):
-        node.account.kill_process("schema-registry", clean_shutdown, allow_fail)
-
-    def start_node(self, node, config=None):
         if config is None:
             template = open('templates/schema-registry.properties').read()
             template_params = {
@@ -201,6 +113,18 @@ class SchemaRegistryService(Service):
 
         self.logger.debug("Attempting to start node with command: " + cmd)
         node.account.ssh(cmd)
+
+    def wait_until_alive(self, node):
+        # Wait for the server to become live
+        node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
+
+    def stop_node(self, node, clean_shutdown=True, allow_fail=True):
+        self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, self.idx(node), node.account.hostname))
+        node.account.kill_process("schema-registry", clean_shutdown, allow_fail)
+
+    def clean_node(self, node):
+        self.logger.info("Cleaning %s node %d on %s" % (type(self).__name__, self.idx(node), node.account.hostname))
+        node.account.ssh("rm -rf /mnt/schema-registry.properties /mnt/schema-registry.log")
 
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):
         self.stop_node(node, clean_shutdown, allow_fail=True)
@@ -266,25 +190,40 @@ class HDFSService(Service):
         self.hadoop_bin_dir = 'bin'
         self.hadoop_example_jar = None
 
-    def start(self):
-        super(HDFSService, self).start()
+        self.logs = {"hadoop_logs": "/mnt/logs"}
 
-        for idx, node in enumerate(self.nodes, 1):
-            if idx == 1:
-                self.master_host = node.account.hostname
+    def start_node(self, node):
+        idx = self.idx(node)
 
-            self.create_hdfs_dirs(node)
-            self.distribute_hdfs_confs(node)
-            self.logger.info("Stopping HDFS on %s", node.account.hostname)
-            self._stop_and_clean_internal(node, allow_fail=True)
+        if idx == 1:
+            self.master_host = node.account.hostname
 
-            if idx == 1:
-                self.format_namenode(node)
-                self.start_namenode(node)
-            else:
-                self.slaves.append(node.account.hostname)
-                self.start_datanode(node)
-            time.sleep(5)  # wait for start up
+        self.create_hdfs_dirs(node)
+        self.distribute_hdfs_confs(node)
+        self.logger.info("Stopping HDFS on %s", node.account.hostname)
+        self._stop_and_clean_internal(node, allow_fail=True)
+
+        if idx == 1:
+            self.format_namenode(node)
+            self.start_namenode(node)
+        else:
+            self.slaves.append(node.account.hostname)
+            self.start_datanode(node)
+
+    def wait_until_alive(self, node):
+        # ad hoc, just sleep a little
+        time.sleep(5)
+
+    def stop_node(self, node):
+        self.logger.info("Stopping HDFS processes on %s", node.account.hostname)
+        pids = list(node.account.ssh_capture("ps ax | grep java | grep -v grep | awk '{print $1}'"))
+        for pid in pids:
+            node.account.ssh("kill -9 " + pid)
+        time.sleep(5)  # the stop script doesn't wait
+
+    def clean_node(self, node):
+        self.logger.info("Removing HDFS directories on %s", node.account.hostname)
+        node.account.ssh("rm -rf /mnt/data/ /mnt/name/ /mnt/logs")
 
     def create_hdfs_dirs(self, node):
         self.logger.info("Creating hdfs directories on %s", node.account.hostname)
@@ -339,22 +278,6 @@ class HDFSService(Service):
             "HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/hadoop-daemon.sh "
             "--config /mnt/ start datanode")
 
-    def stop(self):
-        super(HDFSService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self._stop_and_clean_internal(node)
-            node.free()
-
-    def _stop_and_clean_internal(self, node, allow_fail=False):
-        self.logger.info("Force cleaning HDFS processes on %s", node.account.hostname)
-        pids = list(node.account.ssh_capture("ps ax | grep java | grep -v grep | awk '{print $1}'"))
-        for pid in pids:
-            node.account.ssh("kill -9 " + pid)
-        time.sleep(5)  # the stop script doesn't wait
-        self.logger.info("Removing HDFS directories on %s", node.account.hostname)
-        node.account.ssh("rm -rf /mnt/data/ /mnt/name/ /mnt/logs")
-
 
 class CDHV1Service(HDFSService):
     def __init__(self, service_context, hadoop_home):
@@ -374,14 +297,34 @@ class CDHV1Service(HDFSService):
             self.logger.info("Stopping MRv1 on %s", node.account.hostname)
             self._stop_and_clean(node, allow_fail=True)
 
-            self.distribute_mr_confs(node)
+    def start_node(self, node):
+        super(CDHV1Service, self).start_node(node)
+        idx = self.idx(node)
 
-            if idx == 1:
-                self.start_jobtracker(node)
-                self.start_jobhistoryserver(node)
-            else:
-                self.start_tasktracker(node)
-            time.sleep(5)
+        self.distribute_mr_confs(node)
+
+        if idx == 1:
+            self.start_jobtracker(node)
+            self.start_jobhistoryserver(node)
+        else:
+            self.start_tasktracker(node)
+
+    def wait_until_alive(self, node):
+        time.sleep(5)
+
+    def stop_node(self, node):
+        node.account.ssh("HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "/bin-mapreduce1/hadoop-daemon.sh --config /mnt "
+                         "stop tasktracker", allow_fail=True)
+        node.account.ssh("HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "/bin-mapreduce1/hadoop-daemon.sh --config /mnt "
+                         "stop jobtracker", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "sbin/mr-jobhistory-daemon.sh --config /mnt "
+                         "stop historyserver", allow_fail=True)
+
+    def clean_node(self, node):
+        node.account.ssh("rm -rf /mnt/mapred-site.xml")
 
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing MR1 confs to %s", node.account.hostname)
@@ -418,19 +361,6 @@ class CDHV1Service(HDFSService):
                          "/sbin/mr-jobhistory-daemon.sh --config /mnt "
                          "start historyserver &")
 
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home +
-                         "/bin-mapreduce1/hadoop-daemon.sh --config /mnt "
-                         "stop tasktracker", allow_fail=allow_fail)
-        node.account.ssh("HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home +
-                         "/bin-mapreduce1/hadoop-daemon.sh --config /mnt "
-                         "stop jobtracker", allow_fail=allow_fail)
-        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs " + self.hadoop_home +
-                         "sbin/mr-jobhistory-daemon.sh --config /mnt "
-                         "stop historyserver", allow_fail=allow_fail)
-        time.sleep(5)  # the stop script doesn't wait
-        node.account.ssh("rm -rf /mnt/mapred-site.xml")
-
 
 class CDHV2Service(HDFSService):
     def __init__(self, service_context, hadoop_home):
@@ -442,22 +372,33 @@ class CDHV2Service(HDFSService):
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar'
 
-    def start(self):
-        super(CDHV2Service, self).start()
+    def start_node(self, node):
+        idx = self.idx(node)
+        self.distribute_mr_confs(node)
 
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping YARN on %s", node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
+        if idx == 1:
+            self.start_resourcemanager(node)
+            self.start_jobhistoryserver(node)
+        else:
+            self.start_nodemanager(node)
 
-            self.distribute_mr_confs(node)
+    def wait_until_alive(self, node):
+        time.sleep(5)
 
-            if idx == 1:
-                self.start_resourcemanager(node)
-                self.start_jobhistoryserver(node)
-            else:
-                self.start_nodemanager(node)
-            time.sleep(5)
-    
+    def stop_node(self, node):
+        self.logger.info("Stopping YARN on %s", node.account.hostname)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/yarn-daemon.sh --config /mnt "
+            "stop nodemanager &", allow_fail=True)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/yarn-daemon.sh --config /mnt "
+            "stop resourcemanager &", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "/sbin/mr-jobhistory-daemon.sh --config /mnt "
+                         "stop historyserver", allow_fail=True)
+        time.sleep(5)  # the stop script doesn't wait
+
+    def clean_node(self, node):
+        node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
+
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
@@ -502,17 +443,6 @@ class CDHV2Service(HDFSService):
                          "/sbin/mr-jobhistory-daemon.sh --config /mnt "
                          "start historyserver &")
 
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/yarn-daemon.sh --config /mnt "
-            "stop nodemanager &", allow_fail=allow_fail)
-        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/yarn-daemon.sh --config /mnt "
-            "stop resourcemanager &", allow_fail=allow_fail)
-        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs " + self.hadoop_home +
-                         "/sbin/mr-jobhistory-daemon.sh --config /mnt "
-                         "stop historyserver", allow_fail=allow_fail)
-        time.sleep(5)  # the stop script doesn't wait
-        node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
-
 
 class HDPService(HDFSService):
     def __init__(self, service_context, hadoop_home):
@@ -527,22 +457,34 @@ class HDPService(HDFSService):
         self.historyserver_bin_path = '/usr/hdp/current/hadoop-mapreduce-historyserver/'
         self.hadoop_client_bin_path = '/usr/hdp/current/hadoop-client/'
 
-    def start(self):
-        super(HDPService, self).start()
+    def start_node(self, node):
+        idx = self.idx(node)
+        self.distribute_mr_confs(node)
 
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping YARN on %s", node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
+        if idx == 1:
+            self.config_on_hdfs(node)
+            self.start_resourcemanager(node)
+            self.start_jobhistoryserver(node)
+        else:
+            self.start_nodemanager(node)
 
-            self.distribute_mr_confs(node)
+    def wait_until_alive(self, node):
+        time.sleep(5)
 
-            if idx == 1:
-                self.config_on_hdfs(node)
-                self.start_resourcemanager(node)
-                self.start_jobhistoryserver(node)
-            else:
-                self.start_nodemanager(node)
-            time.sleep(5)
+    def stop_node(self, node):
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
+                         "--config /mnt "
+                         "stop nodemanager", allow_fail=True)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
+                         "--config /mnt "
+                         "stop resourcemanager", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs "
+                         + self.historyserver_bin_path + "sbin/mr-jobhistory-daemon.sh"
+                         " --config /mnt stop historyserver", allow_fail=True)
+        time.sleep(5)  # the stop script doesn't wait
+
+    def clean_node(self, node):
+        node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
 
     def config_on_hdfs(self, node):
         self.logger.info("Make necessary YARN configuration in HDFS at %s", node.account.hostname)
@@ -613,15 +555,4 @@ class HDPService(HDFSService):
                          + self.historyserver_bin_path + "sbin/mr-jobhistory-daemon.sh"
                          " --config /mnt start historyserver")
 
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
-                         "--config /mnt "
-                         "stop nodemanager", allow_fail=allow_fail)
-        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
-                         "--config /mnt "
-                         "stop resourcemanager", allow_fail=allow_fail)
-        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs "
-                         + self.historyserver_bin_path + "sbin/mr-jobhistory-daemon.sh"
-                         " --config /mnt stop historyserver", allow_fail=allow_fail)
-        time.sleep(5)  # the stop script doesn't wait
-        node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
+
