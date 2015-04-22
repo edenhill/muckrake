@@ -28,7 +28,7 @@ import json
 
 class KafkaTest(Test):
     """
-    Helper class that manage setting up a Kafka cluster. Use this if the
+    Helper class that manages setting up a Kafka cluster. Use this if the
     default settings for Kafka are sufficient for your test; any customization
     needs to be done manually. Your run() method should call tearDown and
     setUp. The Zookeeper and Kafka services are available as the fields
