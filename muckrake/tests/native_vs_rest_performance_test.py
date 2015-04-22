@@ -16,38 +16,44 @@ from .test import RestProxyTest
 from muckrake.services.performance import ProducerPerformanceService, RestProducerPerformanceService,\
     ConsumerPerformanceService, RestConsumerPerformanceService
 
+
 class NativeVsRestProducerPerformance(RestProxyTest):
     def __init__(self, test_context):
         super(NativeVsRestProducerPerformance, self).__init__(test_context, num_zk=1, num_brokers=1, num_rest=1, topics={
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 },
         })
 
-    def run(self):
-        msgs = 50000000
-        msg_size = 100
-        batch_size = 8196
-        acks = 1 # default for REST proxy, which isn't yet configurable
-        # These settings will work in the default local Vagrant VMs, useful for testing
         if False:
+            msgs = 50000000
+            msg_size = 100
+            batch_size = 8196
+            acks = 1 # default for REST proxy, which isn't yet configurable
+            # These settings will work in the default local Vagrant VMs, useful for testing
+        else:
             msgs = 1000000
             msg_size = 100
             batch_size = 8196
 
-        producer_perf = ProducerPerformanceService(
+        self.services['producer_perf'] = ProducerPerformanceService(
             self.service_context(1), self.kafka,
             topic="test-rep-one", num_records=msgs, record_size=msg_size, throughput=-1,
             settings={'batch.size':batch_size, 'acks':acks}
         )
-        rest_producer_perf = RestProducerPerformanceService(
+        self.producer_perf = self.services['producer_perf']
+
+        self.services['rest_producer_perf'] = RestProducerPerformanceService(
             self.service_context(1), self.rest,
             topic="test-rep-one", num_records=msgs, record_size=msg_size, batch_size=batch_size, throughput=-1
         )
+        self.rest_producer_perf = self.services['rest_producer_perf']
 
-        producer_perf.run()
-        rest_producer_perf.run()
+    def run(self):
+        self.producer_perf.run()
+        self.rest_producer_perf.run()
 
-        self.logger.info("Producer performance: %f per sec, %f ms", producer_perf.results[0]['records_per_sec'], producer_perf.results[0]['latency_99th_ms'])
-        self.logger.info("REST Producer performance: %f per sec, %f ms", rest_producer_perf.results[0]['records_per_sec'], rest_producer_perf.results[0]['latency_99th_ms'])
+        self.logger.info("Producer performance: %f per sec, %f ms", self.producer_perf.results[0]['records_per_sec'], self.producer_perf.results[0]['latency_99th_ms'])
+        self.logger.info("REST Producer performance: %f per sec, %f ms", self.rest_producer_perf.results[0]['records_per_sec'], self.rest_producer_perf.results[0]['latency_99th_ms'])
+
 
 class NativeVsRestConsumerPerformance(RestProxyTest):
     def __init__(self, test_context):
@@ -55,38 +61,45 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 }
         })
 
-    def run(self):
-        msgs = 5000000
-        msg_size = 100
-        batch_size = 8196
-        acks = 1 # default for REST proxy, which isn't yet configurable
-        nthreads = 1 # not configurable for REST proxy
-        # These settings will work in the default local Vagrant VMs, useful for testing
         if False:
+            msgs = 5000000
+            msg_size = 100
+            batch_size = 8196
+            acks = 1 # default for REST proxy, which isn't yet configurable
+            nthreads = 1 # not configurable for REST proxy
+            # These settings will work in the default local Vagrant VMs, useful for testing
+        else:
             msgs = 1000000
             msg_size = 100
             batch_size = 8196
 
-        # Seed data. FIXME currently the REST consumer isn't properly finishing
-        # unless we have some extra messages -- the last set isn't getting
-        # properly returned for some reason.
-        producer = ProducerPerformanceService(
+        self.services['producer'] = ProducerPerformanceService(
             self.service_context(1), self.kafka,
             topic="test", num_records=msgs+1000, record_size=msg_size, throughput=-1,
-            settings={'batch.size':batch_size, 'acks':acks}
+            settings={'batch.size':batch_size, 'acks': acks}
         )
-        producer.run()
+        self.producer = self.services['producer']
 
-        consumer_perf = ConsumerPerformanceService(
+        self.services['consumer_perf'] = ConsumerPerformanceService(
             self.service_context(1), self.kafka,
             topic="test", num_records=msgs, throughput=-1, threads=nthreads
         )
-        rest_consumer_perf = RestConsumerPerformanceService(
+        self.consumer_perf = self.services['consumer_perf']
+
+        self.services['rest_consumer_perf'] = RestConsumerPerformanceService(
             self.service_context(1), self.rest,
             topic="test", num_records=msgs, throughput=-1
         )
-        consumer_perf.run()
-        rest_consumer_perf.run()
+        self.rest_consumer_perf = self.services['rest_consumer_perf']
 
-        self.logger.info("Consumer performance: %f MB/s, %f msg/sec", consumer_perf.results[0]['mbps'], consumer_perf.results[0]['records_per_sec'])
-        self.logger.info("REST Consumer performance: %f MB/s, %f msg/sec", rest_consumer_perf.results[0]['mbps'], rest_consumer_perf.results[0]['records_per_sec'])
+    def run(self):
+        # Seed data. FIXME currently the REST consumer isn't properly finishing
+        # unless we have some extra messages -- the last set isn't getting
+        # properly returned for some reason.
+        self.producer.run()
+
+        self.consumer_perf.run()
+        self.rest_consumer_perf.run()
+
+        self.logger.info("Consumer performance: %f MB/s, %f msg/sec", self.consumer_perf.results[0]['mbps'], self.consumer_perf.results[0]['records_per_sec'])
+        self.logger.info("REST Consumer performance: %f MB/s, %f msg/sec", self.rest_consumer_perf.results[0]['mbps'], self.rest_consumer_perf.results[0]['records_per_sec'])

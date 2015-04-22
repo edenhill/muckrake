@@ -16,6 +16,7 @@ from .test import KafkaTest
 from ducktape.services.service import Service
 from muckrake.services.performance import ProducerPerformanceService, ConsumerPerformanceService, EndToEndLatencyService
 
+
 class KafkaBenchmark(KafkaTest):
     '''A benchmark of Kafka producer/consumer performance. This replicates the test
     run here:
@@ -28,16 +29,19 @@ class KafkaBenchmark(KafkaTest):
         })
 
     def run(self):
-        msgs_default = 50000000
-        msgs_large = 100000000
-        msg_size_default = 100
-        batch_size = 8*1024
-        buffer_memory = 64*1024*1024
-        msg_sizes = [10, 100, 1000, 10000, 100000]
-        target_data_size = 1024*1024*1024
-        target_data_size_gb = target_data_size/float(1024*1024*1024)
-        # These settings will work in the default local Vagrant VMs, useful for testing
+
         if False:
+            # These settings will work in the default local Vagrant VMs, useful for testing
+            msgs_default = 50000000
+            msgs_large = 100000000
+            msg_size_default = 100
+            batch_size = 8*1024
+            buffer_memory = 64*1024*1024
+            msg_sizes = [10, 100, 1000, 10000, 100000]
+            target_data_size = 1024*1024*1024
+            target_data_size_gb = target_data_size/float(1024*1024*1024)
+        else:
+            # Appropriate for aws
             msgs_default = 1000000
             msgs_large = 10000000
             msg_size_default = 100
@@ -80,7 +84,6 @@ class KafkaBenchmark(KafkaTest):
             settings={'acks':1, 'batch.size':batch_size, 'buffer.memory':buffer_memory}
         )
         three_rep_async.run()
-
 
         msg_size_perf = {}
         for msg_size in msg_sizes:
@@ -133,7 +136,6 @@ class KafkaBenchmark(KafkaTest):
             topic="test-rep-three", num_records=10000
         )
         e2e_latency.run()
-
 
         # LONG TERM THROUGHPUT TEST
 

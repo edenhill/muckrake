@@ -78,10 +78,7 @@ class CleanBounce(SchemaRegistryFailoverTest):
         for i in range(5):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5)
-
-            # Don't restart the new master until the previous master is running again
-            prev_master_node.account.wait_for_http_service(
-                self.schema_registry.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
+            self.schema_registry.wait_until_alive(prev_master_node)
 
 
 class HardBounce(SchemaRegistryFailoverTest):
@@ -100,8 +97,6 @@ class HardBounce(SchemaRegistryFailoverTest):
         for i in range(6):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5, clean_shutdown=False)
+            self.schema_registry.wait_until_alive(prev_master_node)
 
-            # Don't restart the new master until the previous master is running again
-            prev_master_node.account.wait_for_http_service(
-                self.schema_registry.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
 

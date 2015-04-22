@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from ducktape.tests.test import Test
+from ducktape.services.service_registry import ServiceRegistry
 
-from muckrake.services.core import ZookeeperService
+from muckrake.services.zookeeper_service import ZookeeperService
 from muckrake.services.kafka_service import KafkaService
 from muckrake.services.core import KafkaRestService
 from muckrake.services.core import SchemaRegistryService
@@ -25,44 +26,35 @@ class EverythingRunsTest(Test):
     """ Sanity check to ensure that various core services all run.
     """
     def __init__(self, test_context):
+        """:type test_context: ducktape.tests.test.TestContext"""
         super(EverythingRunsTest, self).__init__(test_context=test_context)
-        self.num_zk = 1
-        self.num_brokers = 1
-        self.num_rest = 1
-        self.num_schema_registry = 1
-        self.num_register_driver = 1
 
-    def min_cluster_size(self):
-        return self.num_zk + self.num_brokers + self.num_rest + self.num_schema_registry + self.num_register_driver
+        # register a bunch of services
+        self.services = ServiceRegistry()
+        self.services['zk'] = ZookeeperService(self.service_context(num_nodes=2))
 
-    def run(self):
-        self.zk = ZookeeperService(self.service_context(self.num_zk))
-        self.zk.start()
+        self.services['kafka'] = KafkaService(self.service_context(num_nodes=1), self.services['zk'])
 
-        self.kafka = KafkaService(self.service_context(self.num_brokers), self.zk)
-        self.kafka.start()
+        self.services['schema_registry'] = SchemaRegistryService(
+            self.service_context(num_nodes=1),
+            self.services['zk'], self.services['kafka'])
 
-        self.schema_registry = SchemaRegistryService(
-            self.service_context(self.num_schema_registry), self.zk, self.kafka)
-        self.schema_registry.start()
+        self.services['resty_proxy'] = KafkaRestService(
+            self.service_context(num_nodes=1),
+            self.services['zk'], self.services['kafka'], self.services['schema_registry'])
 
-        self.rest_proxy = KafkaRestService(
-            self.service_context(self.num_rest), self.zk, self.kafka, self.schema_registry)
-        self.rest_proxy.start()
-
-        self.register_driver = RegisterSchemasService(
-            self.service_context(self.num_register_driver),
-            self.schema_registry,
+        self.services['register_driver'] = RegisterSchemasService(
+            self.service_context(num_nodes=1),
+            self.services['schema_registry'],
             retry_wait_sec=.02, num_tries=5,
             max_time_seconds=10, max_schemas=50)
 
-        self.register_driver.start()
-        self.register_driver.wait()
-        self.register_driver.stop()
+    def run(self):
+        self.services['zk'].start()
+        self.services['kafka'].start()
+        self.services['schema_registry'].start()
+        self.services['resty_proxy'].start()
 
-        self.schema_registry.stop()
-        self.rest_proxy.stop()
-        self.kafka.stop()
-        self.zk.stop()
+        self.services['register_driver'].start()
+        self.services['register_driver'].wait() # block until register_driver finishes
 
-        self.logger.info("All proceeded smoothly.")
