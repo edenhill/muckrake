@@ -16,11 +16,13 @@ from ducktape.tests.test import Test
 from ducktape.services.service import ServiceContext
 
 from muckrake.services.register_schemas_service import RegisterSchemasService
-from muckrake.services.schema_registry_utils import get_schema_by_id, get_all_versions, \
+from muckrake.services.schema_registry import get_schema_by_id, get_all_versions, \
     get_schema_by_version, get_by_schema
-from muckrake.services.core import KafkaRestService, SchemaRegistryService, create_hadoop_service
+from muckrake.services.kafka_rest import KafkaRestService
+from muckrake.services.schema_registry import SchemaRegistryService
+from muckrake.services.hadoop import create_hadoop_service
 from muckrake.services.zookeeper_service import ZookeeperService
-from muckrake.services.kafka_service import KafkaService
+from muckrake.services.kafka import KafkaService
 
 import time
 import json

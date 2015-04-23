@@ -13,9 +13,8 @@
 # limitations under the License.
 
 from muckrake.services.background_thread_service import BackgroundThreadService
+from muckrake.services.schema_registry import update_config, Compatibility, make_schema_string, register_schema
 
-from .schema_registry_utils import *
-import threading
 import time
 
 

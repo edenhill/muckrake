@@ -16,9 +16,9 @@ from ducktape.tests.test import Test
 from ducktape.services.service_registry import ServiceRegistry
 
 from muckrake.services.zookeeper_service import ZookeeperService
-from muckrake.services.kafka_service import KafkaService
-from muckrake.services.core import KafkaRestService
-from muckrake.services.core import SchemaRegistryService
+from muckrake.services.kafka import KafkaService
+from muckrake.services.kafka_rest import KafkaRestService
+from muckrake.services.schema_registry import SchemaRegistryService
 from muckrake.services.register_schemas_service import RegisterSchemasService
 
 
