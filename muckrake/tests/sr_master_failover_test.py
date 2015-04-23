@@ -26,11 +26,9 @@ class MasterCleanFailover(SchemaRegistryFailoverTest):
     Begin registering schemas; part way through, cleanly kill the master.
     """
     def __init__(self, test_context):
-        super(MasterCleanFailover, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
         # Expect leader reelection to take less than .2 sec in a clean shutdown
-        self.retry_wait_sec = .02
-        self.num_retries = 100
+        super(MasterCleanFailover, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.02, num_retries=100)
 
     def drive_failures(self):
         """
@@ -46,11 +44,9 @@ class MasterHardFailover(SchemaRegistryFailoverTest):
     Begin registering schemas; part way through, hard kill the master (kill -9)
     """
     def __init__(self, test_context):
-        super(MasterHardFailover, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
         # Default zookeeper session timeout is 10 seconds
-        self.retry_wait_sec = .1
-        self.num_retries = 1500
+        super(MasterHardFailover, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.1, num_retries=1500)
 
     def drive_failures(self):
         """
@@ -63,11 +59,9 @@ class MasterHardFailover(SchemaRegistryFailoverTest):
 
 class CleanBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
-        super(CleanBounce, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
         # Expect leader reelection to take less than .2 sec in a clean shutdown
-        self.retry_wait_sec = .02
-        self.num_retries = 100
+        super(CleanBounce, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.02, num_retries=100)
 
     def drive_failures(self):
         """
@@ -82,11 +76,8 @@ class CleanBounce(SchemaRegistryFailoverTest):
 
 class HardBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
-        super(HardBounce, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
-        # Expect leader reelection to take less than .2 sec in a clean shutdown
-        self.retry_wait_sec = .3
-        self.num_retries = 100
+        super(HardBounce, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.3, num_retries=100)
 
     def drive_failures(self):
         """

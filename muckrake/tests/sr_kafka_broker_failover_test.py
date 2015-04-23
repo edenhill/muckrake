@@ -25,10 +25,8 @@ class KafkaLeaderCleanFailover(SchemaRegistryFailoverTest):
     Begin registering schemas; part way through, cleanly kill the leader node for "_schemas" topic.
     """
     def __init__(self, test_context):
-        super(KafkaLeaderCleanFailover, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
-
-        self.retry_wait_sec = .02
-        self.num_retries = 100
+        super(KafkaLeaderCleanFailover, self).__init__(
+            test_context, num_zk=1, num_brokers=3, num_schema_registry=1, retry_wait_sec=.02, num_retries=100)
 
     def drive_failures(self):
         time.sleep(3)
@@ -41,10 +39,8 @@ class KafkaLeaderHardFailover(SchemaRegistryFailoverTest):
     Begin registering schemas; part way through, kill -9 the leader node for "_schemas" topic
     """
     def __init__(self, test_context):
-        super(KafkaLeaderHardFailover, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
-
-        self.retry_wait_sec = .1
-        self.num_retries = 110
+        super(KafkaLeaderHardFailover, self).__init__(
+            test_context, num_zk=1, num_brokers=3, num_schema_registry=1, retry_wait_sec=.1, num_retries=110)
 
     def drive_failures(self):
         time.sleep(3)
@@ -54,10 +50,8 @@ class KafkaLeaderHardFailover(SchemaRegistryFailoverTest):
 
 class KafkaBrokerCleanBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
-        super(KafkaBrokerCleanBounce, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
-
-        self.retry_wait_sec = .02
-        self.num_retries = 100
+        super(KafkaBrokerCleanBounce, self).__init__(
+            test_context, num_zk=1, num_brokers=3, num_schema_registry=1, retry_wait_sec=.02, num_retries=100)
 
     def drive_failures(self):
         # Bounce leader several times with some wait in-between
@@ -71,10 +65,8 @@ class KafkaBrokerCleanBounce(SchemaRegistryFailoverTest):
 
 class KafkaBrokerHardBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
-        super(KafkaBrokerHardBounce, self).__init__(test_context, num_zk=1, num_brokers=3, num_schema_registry=1)
-
-        self.retry_wait_sec = .3
-        self.num_retries = 100
+        super(KafkaBrokerHardBounce, self).__init__(
+            test_context, num_zk=1, num_brokers=3, num_schema_registry=1, retry_wait_sec=.3, num_retries=100)
 
     def drive_failures(self):
         # Bounce leader several times with some wait in-between

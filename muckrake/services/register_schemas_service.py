@@ -101,7 +101,7 @@ class RegisterSchemasService(BackgroundThreadService):
         that we might want a setup where requests come in concurrently from different nodes.
         """
 
-        self.logger.debug("Attempting to register schema number %d." % num)
+        self.logger.debug("Attempting to register schema number %d with %d retries and %f backoff." % (num, self.num_tries, self.retry_wait_sec))
 
         schema_string = make_schema_string(num)
         start = time.time()
@@ -109,6 +109,7 @@ class RegisterSchemasService(BackgroundThreadService):
         stop = -1
         schema_id = -1
         success = False
+
         for i in range(self.num_tries):
             n_tries += 1
 
@@ -127,6 +128,7 @@ class RegisterSchemasService(BackgroundThreadService):
             except Exception as e:
                 # TODO - use more specific exception
                 # Ignore and try again
+                self.logger.debug("Failed to register schema %d: %s" % (num, str(e)))
                 pass
 
             # sleep a little and try again
@@ -154,6 +156,7 @@ class RegisterSchemasService(BackgroundThreadService):
             self.try_histogram[n_tries] += 1
         else:
             self.try_histogram[n_tries] = 1
+
 
 
 

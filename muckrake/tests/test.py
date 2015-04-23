@@ -103,14 +103,14 @@ class SchemaRegistryTest(KafkaTest):
 
 
 class SchemaRegistryFailoverTest(SchemaRegistryTest):
-    def __init__(self, test_context, num_zk, num_brokers, num_schema_registry):
+    def __init__(self, test_context, num_zk, num_brokers, num_schema_registry, retry_wait_sec=.2, num_retries=10):
         super(SchemaRegistryFailoverTest, self).__init__(test_context, num_zk, num_brokers, num_schema_registry)
 
         # Time to wait between registration retries
-        self.retry_wait_sec = .2
+        self.retry_wait_sec = retry_wait_sec
 
         # Number of attempted retries
-        self.num_retries = 10
+        self.num_retries = num_retries
 
         self.services['register_driver'] = RegisterSchemasService(
             self.service_context(num_nodes=1), self.schema_registry,
@@ -176,6 +176,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         success = success and results["success"]
 
         summary += "-------------------------------------------------------------------\n"
+        assert success, summary
         self.logger.info(summary)
 
     def normalize_schema_string(self, schema_string):
