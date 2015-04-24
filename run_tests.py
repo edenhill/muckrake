@@ -11,7 +11,7 @@ def vagrant_provision():
     return run("vagrant provision")
 
 def run_tests():
-    return run("export PYTHONPATH=$PYTHONPATH:/muckrake && ducktape muckrake/tests/everything_runs_test.py")
+    return run("export PYTHONPATH=$PYTHONPATH:/muckrake && ducktape muckrake/tests/mini_test.py")
 
 def vagrant_destroy():
     return run("vagrant destroy -f")
@@ -19,7 +19,7 @@ def vagrant_destroy():
 def run(cmd):
     print "Running %s" % cmd
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    for line in iter(p.stdout.readline, ''):
+    for line in iter(proc.stdout.readline, ''):
         print line
     
     output, err = proc.communicate()
