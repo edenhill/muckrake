@@ -23,7 +23,7 @@
 
 # The java implementation to use.
 # export JAVA_HOME=$(/usr/libexec/java_home)
-export JAVA_HOME=%(java_home)s
+export JAVA_HOME={{ java_home }}
 # The jsvc implementation to use. Jsvc is required to run secure datanodes.
 #export JSVC_HOME=${JSVC_HOME}
 

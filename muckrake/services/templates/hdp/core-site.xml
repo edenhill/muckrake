@@ -19,6 +19,6 @@
 <configuration>
   <property>
     <name>fs.default.name</name>
-    <value>%(fs_default_name)s</value>
+    <value>hdfs://{{ master_host }}:9000</value>
   </property>
 </configuration>

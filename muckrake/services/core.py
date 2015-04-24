@@ -18,6 +18,7 @@ import time, re
 from .schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
 from .kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
 import abc
+import os.path
 
 
 class ZookeeperService(Service):
@@ -30,24 +31,12 @@ class ZookeeperService(Service):
 
     def start(self):
         super(ZookeeperService, self).start()
-        config = """
-dataDir=/mnt/zookeeper
-clientPort=2181
-maxClientCnxns=0
-initLimit=5
-syncLimit=2
-quorumListenOnAllIPs=true
-"""
-        for idx, node in enumerate(self.nodes, 1):
-            template_params = { 'idx': idx, 'host': node.account.hostname }
-            config += "server.%(idx)d=%(host)s:2888:3888\n" % template_params
-
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Starting ZK node %d on %s", idx, node.account.hostname)
             self._stop_and_clean(node, allow_fail=True)
             node.account.ssh("mkdir -p /mnt/zookeeper")
             node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
-            node.account.create_file("/mnt/zookeeper.properties", config)
+            node.account.create_file("/mnt/zookeeper.properties", self.render('zookeeper.properties'))
             node.account.ssh(
                 "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(zk_log)s 2>> %(zk_log)s &"
                 % self.logs)
@@ -98,26 +87,10 @@ class KafkaRestService(Service):
 
     def start(self):
         super(KafkaRestService, self).start()
-        template = open('templates/rest.properties').read()
-        zk_connect = self.zk.connect_setting()
-        bootstrapServers = self.kafka.bootstrap_servers()
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Starting REST node %d on %s", idx, node.account.hostname)
             self._stop_and_clean(node, allow_fail=True)
-            template_params = {
-                'id': idx,
-                'port': self.port,
-                'zk_connect': zk_connect,
-                'bootstrap_servers': bootstrapServers,
-                'schema_registry_url': None
-            }
-
-            if self.schema_registry is not None:
-                template_params.update({'schema_registry_url': self.schema_registry.url()})
-
-            self.logger.info("Schema registry url for Kafka rest proxy is %s", template_params['schema_registry_url'])
-            config = template % template_params
-            node.account.create_file("/mnt/rest.properties", config)
+            node.account.create_file("/mnt/rest.properties", self.render('rest.properties', id=idx))
             node.account.ssh("/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> /mnt/rest.log 2>> /mnt/rest.log &")
 
             node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
@@ -153,18 +126,10 @@ class SchemaRegistryService(Service):
     def start(self):
         super(SchemaRegistryService, self).start()
 
-        template = open('templates/schema-registry.properties').read()
-        template_params = {
-            'kafkastore_topic': '_schemas',
-            'kafkastore_url': self.zk.connect_setting(),
-            'rest_port': self.port
-        }
-        config = template % template_params
-
         for idx, node in enumerate(self.nodes, 1):
             self.logger.info("Starting Schema Registry node %d on %s", idx, node.account.hostname)
             self._stop_and_clean(node, allow_fail=True)
-            self.start_node(node, config)
+            self.start_node(node)
 
             # Wait for the server to become live
             node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
@@ -185,17 +150,8 @@ class SchemaRegistryService(Service):
     def stop_node(self, node, clean_shutdown=True, allow_fail=True):
         node.account.kill_process("schema-registry", clean_shutdown, allow_fail)
 
-    def start_node(self, node, config=None):
-        if config is None:
-            template = open('templates/schema-registry.properties').read()
-            template_params = {
-                'kafkastore_topic': '_schemas',
-                'kafkastore_url': self.zk.connect_setting(),
-                'rest_port': self.port
-            }
-            config = template % template_params
-
-        node.account.create_file("/mnt/schema-registry.properties", config)
+    def start_node(self, node):
+        node.account.create_file("/mnt/schema-registry.properties", self.render('schema-registry.properties'))
         cmd = "/opt/schema-registry/bin/schema-registry-start /mnt/schema-registry.properties " \
             + "1>> /mnt/schema-registry.log 2>> /mnt/schema-registry.log &"
 
@@ -292,28 +248,16 @@ class HDFSService(Service):
         node.account.ssh("mkdir -p /mnt/name")
         node.account.ssh("mkdir -p /mnt/logs")
 
+    def template(self, filename):
+        return os.path.join(self.hadoop_distro, filename)
+
     def distribute_hdfs_confs(self, node):
         self.logger.info("Distributing hdfs confs to %s", node.account.hostname)
 
-        template_path = 'templates/' + self.hadoop_distro + '/'
-
-        hadoop_env_template = open(template_path + 'hadoop-env.sh').read()
-        hadoop_env_params = {'java_home': '/usr/lib/jvm/java-6-oracle'}
-        hadoop_env = hadoop_env_template % hadoop_env_params
-
-        core_site_template = open(template_path + 'core-site.xml').read()
-        core_site_params = {
-            'fs_default_name': "hdfs://" + self.master_host + ":9000"
-        }
-        core_site = core_site_template % core_site_params
-
-        hdfs_site_template = open(template_path + 'hdfs-site.xml').read()
-        hdfs_site_params = {
-            'dfs_replication': 1,
-            'dfs_name_dir': '/mnt/name',
-            'dfs_data_dir': '/mnt/data'
-        }
-        hdfs_site = hdfs_site_template % hdfs_site_params
+        hadoop_env = self.render(self.template('hadoop-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
+        core_site = self.render(self.template('core-site.xml'))
+        hdfs_site = self.render(self.template('hdfs-site.xml'),
+                                dfs_replication=1, dfs_name_dir='/mnt/name', dfs_data_dir='/mnt/data')
 
         node.account.create_file("/mnt/hadoop-env.sh", hadoop_env)
         node.account.create_file("/mnt/core-site.xml", core_site)
@@ -385,19 +329,7 @@ class CDHV1Service(HDFSService):
 
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing MR1 confs to %s", node.account.hostname)
-
-        template_path = 'templates/' + self.hadoop_distro + '/'
-
-        mapred_site_template = open(template_path + 'mapred-site.xml').read()
-
-        mapred_site_params = {
-            'mapred_job_tracker': self.master_host + ":54311",
-            'mapreduce_jobhistory_address': self.master_host + ":10020"
-        }
-
-        mapred_site = mapred_site_template % mapred_site_params
-        node.account.create_file("/mnt/mapred-site.xml", mapred_site)
-
+        node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred-site.xml')))
         node.account.ssh("cp " + self.hadoop_home + "etc/hadoop-mapreduce1/hadoop-metrics.properties /mnt")
 
     def start_jobtracker(self, node):
@@ -461,29 +393,11 @@ class CDHV2Service(HDFSService):
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
-        template_path = 'templates/' + self.hadoop_distro + '/'
+        yarn_env = self.render(self.template('yarn-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
 
-        mapred_site_template = open(template_path + 'mapred2-site.xml').read()
-        mapred_site_params = {
-            'mapreduce_jobhistory_address': self.master_host + ":10020"
-        }
-        mapred_site = mapred_site_template % mapred_site_params
-
-        yarn_env_template = open(template_path + 'yarn-env.sh').read()
-        yarn_env_params = {
-            'java_home': '/usr/lib/jvm/java-6-oracle'
-        }
-        yarn_env = yarn_env_template % yarn_env_params
-
-        yarn_site_template = open(template_path + 'yarn-site.xml').read()
-        yarn_site_params = {
-            'yarn_resourcemanager_hostname': self.master_host
-        }
-        yarn_site = yarn_site_template % yarn_site_params
-
-        node.account.create_file("/mnt/mapred-site.xml", mapred_site)
+        node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred2-site.xml')))
         node.account.create_file("/mnt/yarn-env.sh", yarn_env)
-        node.account.create_file("/mnt/yarn-site.xml", yarn_site)
+        node.account.create_file("/mnt/yarn-site.xml", self.render(self.template('yarn-site.xml')))
         node.account.ssh("cp " + self.hadoop_home + "/etc/hadoop/hadoop-metrics.properties /mnt")
 
     def start_resourcemanager(self, node):
@@ -569,28 +483,10 @@ class HDPService(HDFSService):
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
-        template_path = 'templates/' + self.hadoop_distro + '/'
+        yarn_env = self.render(self.template('yarn-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
 
-        yarn_env_template = open(template_path + 'yarn-env.sh').read()
-        yarn_env_params = {
-            'java_home': '/usr/lib/jvm/java-6-oracle'
-        }
-        yarn_env = yarn_env_template % yarn_env_params
-
-        mapred_site_template = open(template_path + 'mapred-site.xml').read()
-        mapred_site_params = {
-            'jobhistory_host': self.master_host
-        }
-        mapred_site = mapred_site_template % mapred_site_params
-
-        yarn_site_template = open(template_path + 'yarn-site.xml').read()
-        yarn_site_params = {
-            'yarn_resourcemanager_hostname': self.master_host
-        }
-        yarn_site = yarn_site_template % yarn_site_params
-
-        node.account.create_file("/mnt/mapred-site.xml", mapred_site)
-        node.account.create_file("/mnt/yarn-site.xml", yarn_site)
+        node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred-site.xml')))
+        node.account.create_file("/mnt/yarn-site.xml", self.render(self.template('yarn-site.xml')))
         node.account.create_file("/mnt/yarn-env.sh", yarn_env)
         node.account.ssh("cp /etc/hadoop/conf/hadoop-metrics.properties /mnt")
         node.account.ssh("cp /etc/hadoop/conf/capacity-scheduler.xml /mnt")

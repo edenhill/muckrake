@@ -160,18 +160,9 @@ class KafkaService(Service):
     def stop_node(self, node, clean_shutdown=True, allow_fail=True):
         node.account.kill_process("kafka", clean_shutdown, allow_fail)
 
-    def start_node(self, node, config=None):
-        if config is None:
-            template = open('templates/kafka.properties').read()
-            template_params = {
-                'broker_id': self.idx(node),
-                'hostname': node.account.hostname,
-                'zk_connect': self.zk.connect_setting()
-            }
-
-            config = template % template_params
-
-        node.account.create_file("/mnt/kafka.properties", config)
+    def start_node(self, node):
+        kafka_props = self.render('kafka.properties', node=node, broker_id=self.idx(node))
+        node.account.create_file("/mnt/kafka.properties", kafka_props)
         cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)

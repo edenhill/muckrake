@@ -6,14 +6,14 @@
 <configuration>
   <property>
     <name>dfs.replication</name>
-    <value>%(dfs_replication)d</value>
+    <value>{{ dfs_replication }}</value>
   </property>
   <property>
     <name>dfs.name.dir</name>
-    <value>file://%(dfs_name_dir)s</value>
+    <value>file://{{ dfs_name_dir}}</value>
   </property>
   <property>
     <name>dfs.data.dir</name>
-    <value>file://%(dfs_data_dir)s</value>
+    <value>file://{{ dfs_data_dir }}</value>
   </property>
 </configuration>
