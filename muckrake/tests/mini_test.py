@@ -22,7 +22,6 @@ class MiniTest(Test):
     def __init__(self, test_context):
         super(MiniTest, self).__init__(test_context=test_context)
 
-        self.services = ServiceRegistry()
         self.services['zk'] = ZookeeperService(self.service_context(num_nodes=1))
         self.services['kafka'] = KafkaService(self.service_context(num_nodes=1), self.services['zk'])
 

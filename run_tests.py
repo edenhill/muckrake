@@ -12,7 +12,7 @@ def vagrant_provision():
     return run("vagrant provision")
 
 def run_tests():
-    return run("export PYTHONPATH=$PYTHONPATH:/muckrake && ducktape muckrake/tests/mini_test.py")
+    return run("ducktape muckrake/tests/mini_test.py")
 
 def vagrant_destroy():
     return run("vagrant destroy -f")
