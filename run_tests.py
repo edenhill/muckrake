@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 
 def build_update():
     return run("./build.sh --update")
@@ -42,7 +43,8 @@ def main():
 
     vagrant_destroy()
     print exit_status
-    sys.exit(exit_status)
+    #sys.exit(exit_status)
+    print exit_status
 
 if __name__ == "__main__":
     main()
