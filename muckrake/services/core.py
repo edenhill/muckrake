@@ -348,7 +348,7 @@ class HDFSService(Service):
 
     def _stop_and_clean_internal(self, node, allow_fail=False):
         self.logger.info("Force cleaning HDFS processes on %s", node.account.hostname)
-        pids = list(node.account.ssh_capture("ps ax | grep java | grep -v grep | awk '{print $1}'"))
+        pids = list(node.account.ssh_capture("ps ax | grep java | grep -v grep | awk '{print $1}'", allow_fail=allow_fail))
         for pid in pids:
             node.account.ssh("kill -9 " + pid)
         time.sleep(5)  # the stop script doesn't wait
