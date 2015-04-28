@@ -69,9 +69,7 @@ class HDFSService(Service):
             time.sleep(5)  # wait for start up
 
     def stop_node(self, node):
-        pids = list(node.account.ssh_capture("ps ax | grep java | grep -v grep | awk '{print $1}'"))
-        for pid in pids:
-            node.account.ssh("kill -9 " + pid)
+        node.account.kill_process(self, "java", clean_shutdown=False)
 
     def clean_node(self, node):
         self.logger.info("Removing HDFS directories on %s", node.account.hostname)
