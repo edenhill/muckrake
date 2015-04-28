@@ -14,7 +14,7 @@
 
 from ducktape.tests.test import Test
 
-from muckrake.services.zookeeper_service import ZookeeperService
+from muckrake.services.zookeeper import ZookeeperService
 from muckrake.services.kafka import KafkaService
 
 

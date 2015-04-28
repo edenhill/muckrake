@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from muckrake.services.background_thread_service import BackgroundThreadService
+from muckrake.services.background_thread import BackgroundThreadService
 from muckrake.services.schema_registry import update_config, Compatibility, make_schema_string, register_schema
 
 import time
