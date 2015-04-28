@@ -254,6 +254,8 @@ class CamusPerformanceService(PerformanceService):
         self.schema_registry = schema_registry
         self.rest = rest
         self.settings = settings
+
+    def _worker(self, idx, node):
         camus_path = '/opt/camus/camus-example/'
         self.args = {
             'hadoop_path': self.hadoop.hadoop_home,
@@ -267,8 +269,6 @@ class CamusPerformanceService(PerformanceService):
             'rest_url': self.rest.url(),
             'topic': 'testAvro'
         }
-
-    def _worker(self, idx, node):
         args = self.args.copy()
 
         self.produce_avro(args['rest_url'] + '/topics/' + args['topic'])
