@@ -51,7 +51,6 @@ quorumListenOnAllIPs=true
             "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(zk_log)s 2>> %(zk_log)s &"
             % self.logs)
 
-    def wait_until_alive(self, node):
         time.sleep(5)  # give it some time to start
 
     def stop_node(self, node, allow_fail=True):

@@ -71,7 +71,6 @@ class KafkaRestService(Service):
         node.account.ssh(
             "/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> %(rest_log)s 2>> %(rest_log)s &" % self.logs)
 
-    def wait_until_alive(self, node):
         # Block until we get a response from the service
         node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
 

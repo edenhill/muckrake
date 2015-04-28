@@ -80,7 +80,6 @@ class SchemaRegistryService(Service):
         self.logger.debug("Attempting to start node with command: " + cmd)
         node.account.ssh(cmd)
 
-    def wait_until_alive(self, node):
         # Wait for the server to become live
         node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
 

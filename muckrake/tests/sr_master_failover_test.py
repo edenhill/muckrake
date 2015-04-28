@@ -71,8 +71,6 @@ class CleanBounce(SchemaRegistryFailoverTest):
         for i in range(5):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5)
-            self.schema_registry.wait_until_alive(prev_master_node)
-
 
 class HardBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
@@ -87,6 +85,4 @@ class HardBounce(SchemaRegistryFailoverTest):
         for i in range(6):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5, clean_shutdown=False)
-            self.schema_registry.wait_until_alive(prev_master_node)
-
 

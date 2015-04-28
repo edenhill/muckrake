@@ -55,8 +55,6 @@ class KafkaService(Service):
         cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)
-
-    def wait_until_alive(self, node):
         time.sleep(5)
 
     def stop_node(self, node, clean_shutdown=True, allow_fail=True):
