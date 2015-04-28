@@ -23,16 +23,16 @@ class NativeVsRestProducerPerformance(RestProxyTest):
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 },
         })
 
-        if False:
-            msgs = 50000000
-            msg_size = 100
-            batch_size = 8196
-            acks = 1 # default for REST proxy, which isn't yet configurable
-            # These settings will work in the default local Vagrant VMs, useful for testing
-        else:
+        if True:
+            # Works on both aws and local
             msgs = 1000000
-            msg_size = 100
-            batch_size = 8196
+        else:
+            # Can use locally on Vagrant VMs, but may use too much memory for aws
+            msgs = 50000000
+
+        msg_size = 100
+        batch_size = 8196
+        acks = 1
 
         self.services['producer_perf'] = ProducerPerformanceService(
             self.service_context(1), self.kafka,
@@ -61,17 +61,17 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
             'test-rep-one' : { 'partitions': 6, 'replication-factor': 1 }
         })
 
-        if False:
-            msgs = 5000000
-            msg_size = 100
-            batch_size = 8196
-            acks = 1 # default for REST proxy, which isn't yet configurable
-            nthreads = 1 # not configurable for REST proxy
-            # These settings will work in the default local Vagrant VMs, useful for testing
-        else:
+        if True:
+            # Works on both aws and local
             msgs = 1000000
-            msg_size = 100
-            batch_size = 8196
+        else:
+            # Can use locally on Vagrant VMs, but may use too much memory for aws
+            msgs = 50000000
+
+        msg_size = 100
+        batch_size = 8196
+        acks = 1 # default for REST proxy, which isn't yet configurable
+        nthreads = 1 # not configurable for REST proxy
 
         self.services['producer'] = ProducerPerformanceService(
             self.service_context(1), self.kafka,

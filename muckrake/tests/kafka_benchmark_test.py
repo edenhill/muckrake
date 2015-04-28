@@ -28,26 +28,20 @@ class KafkaBenchmark(KafkaTest):
             'test-rep-three' : { 'partitions': 6, 'replication-factor': 3 }
         })
 
-        if False:
-            # These settings will work in the default local Vagrant VMs, useful for testing
-            self.msgs_default = 50000000
-            self.msgs_large = 100000000
-            self.msg_size_default = 100
-            self.batch_size = 8*1024
-            self.buffer_memory = 64*1024*1024
-            self.msg_sizes = [10, 100, 1000, 10000, 100000]
-            self.target_data_size = 1024*1024*1024
-            self.target_data_size_gb = self.target_data_size/float(1024*1024*1024)
+        if True:
+            # Works on both aws and local
+            self.msgs = 1000000
         else:
-            # Appropriate for aws
-            self.msgs_default = 1000000
-            self.msgs_large = 10000000
-            self.msg_size_default = 100
-            self.batch_size = 8*1024
-            self.buffer_memory = 64*1024*1024
-            self.msg_sizes = [10, 100, 1000, 10000, 100000]
-            self.target_data_size = 128*1024*1024
-            self.target_data_size_gb = self.target_data_size/float(1024*1024*1024)
+            # Can use locally on Vagrant VMs, but may use too much memory for aws
+            self.msgs = 50000000
+
+        self.msgs_large = 10000000
+        self.msg_size_default = 100
+        self.batch_size = 8*1024
+        self.buffer_memory = 64*1024*1024
+        self.msg_sizes = [10, 100, 1000, 10000, 100000]
+        self.target_data_size = 128*1024*1024
+        self.target_data_size_gb = self.target_data_size/float(1024*1024*1024)
 
     def run(self):
         self.perf.run()
