@@ -171,3 +171,12 @@ EC2 Quickstart
   ephemeral drives (under `/mnt`) which are lost when you halt the VMs, but it
   should be very fast since most of the provisioning work is maintained across
   reboots.
+  
+  Updating AMI
+  ------------
+  To speed up the provisioning process when bringing up a new node, we bring up nodes using pre-provisioned amazon machine instances (AMI). From time to time as dependencies change, it may be necessary to update the AMI. To do so manually:
+  * Bring up an ec2 cluster with Vagrant (one node is enough) and provision it with `vagrant up --provider=aws --no-provision && vagrant provision`.
+  * When the machine is running, sign on to AWS, navigate to EC2 dashboard and click on Running Instances link.   
+  * Right-click one of the provisioned machines and select images->Create image
+  * Once the image (AMI) is created, it will have an id that looks something like `ami-fdc2f6cd`
+  * Replace the id with the newly generated one in your Vagrantfile.local, and in muckrake/aws/aws-example-Vagrantfile.local
