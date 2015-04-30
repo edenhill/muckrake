@@ -54,6 +54,13 @@ class SchemaRegistryService(Service):
         self.kafka = kafka
         self.port = 8081
 
+        self.logs = {
+            "schema_registry_log": {
+                "path": "/mnt/schema-registry.log",
+                "collect_default": True
+            }
+        }
+
     def start_node(self, node):
         self.logger.info("Starting Schema Registry node %d on %s", self.idx(node), node.account.hostname)
         template = open('templates/schema-registry.properties').read()

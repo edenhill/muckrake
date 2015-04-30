@@ -26,7 +26,14 @@ class KafkaService(Service):
         super(KafkaService, self).__init__(context, num_nodes)
         self.zk = zk
         self.topics = topics
-        self.logs = {"kafka_log": "/mnt/kafka.log", "kafka_storage": "/mnt/kafka-logs"}
+        self.logs = {
+            "kafka_log": {
+                "path": "/mnt/kafka.log",
+                "collect_default": True},
+            "kafka_data": {
+                "path": "/mnt/kafka-logs",
+                "collect_default": False}
+        }
 
     def start(self):
         super(KafkaService, self).start()

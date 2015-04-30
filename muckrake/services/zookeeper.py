@@ -22,7 +22,11 @@ class ZookeeperService(Service):
         :type context
         """
         super(ZookeeperService, self).__init__(context, num_nodes)
-        self.logs = {"zk_log": "/mnt/zk.log"}
+        self.logs = {
+            "zk_log": {
+                "path": "/mnt/zk.log",
+                "collect_default": True}
+        }
 
     def make_config(self):
         config = """
@@ -48,8 +52,8 @@ quorumListenOnAllIPs=true
         node.account.create_file("/mnt/zookeeper.properties", self.make_config())
 
         node.account.ssh(
-            "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(zk_log)s 2>> %(zk_log)s &"
-            % self.logs)
+            "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"
+            % self.logs["zk_log"])
 
         time.sleep(5)  # give it some time to start
 

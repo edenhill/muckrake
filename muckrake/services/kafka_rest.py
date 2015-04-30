@@ -45,7 +45,11 @@ class KafkaRestService(Service):
         self.schema_registry = schema_registry
         self.port = 8082
 
-        self.logs = {"rest_log": "/mnt/rest.log"}
+        self.logs = {
+            "rest_log": {
+                "path": "/mnt/rest.log",
+                "collect_default": True}
+        }
 
     def start_node(self, node):
         template = open('templates/rest.properties').read()
@@ -69,7 +73,8 @@ class KafkaRestService(Service):
         config = template % template_params
         node.account.create_file("/mnt/rest.properties", config)
         node.account.ssh(
-            "/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> %(rest_log)s 2>> %(rest_log)s &" % self.logs)
+            "/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> %(path)s 2>> %(path)s &" %
+            self.logs["rest_log"])
 
         # Block until we get a response from the service
         node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
@@ -80,7 +85,7 @@ class KafkaRestService(Service):
 
     def clean_node(self, node):
         self.logger.info("Cleaning REST node %d on %s", self.idx(node), node.account.hostname)
-        node.account.ssh("rm -rf /mnt/rest.properties %(rest_log)s" % self.logs, allow_fail=True)
+        node.account.ssh("rm -rf /mnt/rest.properties %(path)s" % self.logs["rest_log"], allow_fail=True)
 
     def url(self, idx=1):
         return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)

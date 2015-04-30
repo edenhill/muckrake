@@ -45,7 +45,12 @@ class HDFSService(Service):
         self.hadoop_bin_dir = 'bin'
         self.hadoop_example_jar = None
 
-        self.logs = {"hdfs_log": "/mnt/logs"}
+        self.logs = {
+            "hadoop_logs": {
+                "path": "/mnt/logs",
+                "collect_default": False
+            }
+        }
 
     def start(self):
         """Override Service.start
