@@ -17,11 +17,11 @@ from ducktape.services.service import Service
 import time
 
 class ZookeeperService(Service):
-    def __init__(self, service_context):
+    def __init__(self, context, num_nodes):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         """
-        super(ZookeeperService, self).__init__(service_context)
+        super(ZookeeperService, self).__init__(context, num_nodes)
         self.logs = {"zk_log": "/mnt/zk.log"}
 
     def make_config(self):

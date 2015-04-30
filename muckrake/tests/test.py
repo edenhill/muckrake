@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from ducktape.tests.test import Test
-from ducktape.services.service import ServiceContext
 
 from muckrake.services.register_schemas import RegisterSchemasService
 from muckrake.services.schema_registry import get_schema_by_id, get_all_versions, \
@@ -42,13 +41,11 @@ class KafkaTest(Test):
         self.num_brokers = num_brokers
         self.topics = topics
 
-        self.services['zk'] = ZookeeperService(self.service_context(self.num_zk))
-        self.zk = self.services['zk']
+        self.zk = ZookeeperService(test_context, self.num_zk)
 
-        self.services['kafka'] = KafkaService(
-            self.service_context(self.num_brokers),
+        self.kafka = KafkaService(
+            test_context, self.num_brokers,
             self.zk, topics=self.topics)
-        self.kafka = self.services['kafka']
 
     def setUp(self):
         self.zk.start()
@@ -64,10 +61,9 @@ class RestProxyTest(KafkaTest):
         super(RestProxyTest, self).__init__(test_context, num_zk, num_brokers, topics=topics)
         self.num_rest = num_rest
 
-        self.services['rest'] = KafkaRestService(
-            self.service_context(self.num_rest),
+        self.rest = KafkaRestService(
+            test_context, self.num_rest,
             self.zk, self.kafka)
-        self.rest = self.services['rest']
 
     def setUp(self):
         super(RestProxyTest, self).setUp()
@@ -92,10 +88,9 @@ class SchemaRegistryTest(KafkaTest):
 
         self.num_schema_registry = num_schema_registry
 
-        self.services['schema_registry'] = SchemaRegistryService(
-            self.service_context(self.num_schema_registry),
+        self.schema_registry= SchemaRegistryService(
+            test_context, self.num_schema_registry,
             self.zk, self.kafka)
-        self.schema_registry = self.services['schema_registry']
 
     def setUp(self):
         super(SchemaRegistryTest, self).setUp()
@@ -112,11 +107,10 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         # Number of attempted retries
         self.num_retries = num_retries
 
-        self.services['register_driver'] = RegisterSchemasService(
-            self.service_context(num_nodes=1), self.schema_registry,
+        self.register_driver = RegisterSchemasService(
+            test_context, 1, self.schema_registry,
             self.retry_wait_sec,
             self.num_retries, max_time_seconds=900)
-        self.register_driver = self.services['register_driver']
 
     def setUp(self):
         super(SchemaRegistryFailoverTest, self).setUp()
@@ -364,10 +358,9 @@ class HadoopTest(Test):
         super(HadoopTest, self).__init__(test_context)
         self.num_hadoop = num_hadoop
 
-        self.services['hadoop'] = create_hadoop_service(
-            ServiceContext(self.cluster, num_hadoop, self.logger),
+        self.hadoop = create_hadoop_service(
+            test_context, num_hadoop,
             hadoop_distro, hadoop_version)
-        self.hadoop = self.services['hadoop']
 
     def setUp(self):
         self.hadoop.start()
@@ -376,6 +369,7 @@ class HadoopTest(Test):
 class CamusTest(Test):
     def __init__(self, test_context, num_zk, num_brokers, num_hadoop, num_schema_registry, num_rest,
                  hadoop_distro='cdh', hadoop_version=2, topics=None):
+
         super(CamusTest, self).__init__(test_context)
         self.num_zk = num_zk
         self.num_brokers = num_brokers
@@ -386,20 +380,11 @@ class CamusTest(Test):
         self.hadoop_distro = hadoop_distro
         self.hadoop_version = hadoop_version
 
-        self.services['zk'] = ZookeeperService(ServiceContext(self.cluster, self.num_zk, self.logger))
-        self.zk = self.services['zk']
-
-        self.services['kafka'] = KafkaService(ServiceContext(self.cluster, self.num_brokers, self.logger), self.zk, topics=self.topics)
-        self.kafka = self.services['kafka']
-
-        self.services['hadoop'] = create_hadoop_service(ServiceContext(self.cluster, self.num_hadoop, self.logger), self.hadoop_distro, self.hadoop_version)
-        self.hadoop = self.services['hadoop']
-
-        self.services['schema_registry'] = SchemaRegistryService(ServiceContext(self.cluster, self.num_schema_registry, self.logger), self.zk, self.kafka)
-        self.schema_registry = self.services['schema_registry']
-
-        self.services['rest'] = KafkaRestService(ServiceContext(self.cluster, self.num_rest, self.logger), self.zk, self.kafka, self.schema_registry)
-        self.rest = self.services['rest']
+        self.zk = ZookeeperService(test_context, self.num_zk)
+        self.kafka = KafkaService(test_context, self.num_brokers, self.zk, topics=self.topics)
+        self.hadoop = create_hadoop_service(test_context, self.num_hadoop, self.hadoop_distro, self.hadoop_version)
+        self.schema_registry = SchemaRegistryService(test_context, self.num_schema_registry, self.zk, self.kafka)
+        self.rest = KafkaRestService(test_context, self.num_rest, self.zk, self.kafka, self.schema_registry)
 
     def setUp(self):
         self.zk.start()

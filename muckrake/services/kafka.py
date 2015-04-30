@@ -17,13 +17,13 @@ import time, re, json
 
 
 class KafkaService(Service):
-    def __init__(self, service_context, zk, topics=None):
+    def __init__(self, context, num_nodes, zk, topics=None):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type zk: ZookeeperService
         :type topics: dict
         """
-        super(KafkaService, self).__init__(service_context)
+        super(KafkaService, self).__init__(context, num_nodes)
         self.zk = zk
         self.topics = topics
         self.logs = {"kafka_log": "/mnt/kafka.log", "kafka_storage": "/mnt/kafka-logs"}

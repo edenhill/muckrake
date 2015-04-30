@@ -18,8 +18,8 @@ import threading
 
 
 class BackgroundThreadService(Service):
-    def __init__(self, service_context):
-        super(BackgroundThreadService, self).__init__(service_context)
+    def __init__(self, context, num_nodes):
+        super(BackgroundThreadService, self).__init__(context, num_nodes)
         self.worker_threads = []
 
     def start_node(self, node):

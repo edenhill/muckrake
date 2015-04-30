@@ -19,8 +19,7 @@ class HadoopV1SetupTest(HadoopTest):
 
     def __init__(self, test_context):
         super(HadoopV1SetupTest, self).__init__(test_context, 2, hadoop_distro='cdh', hadoop_version=1)
-        self.services['hadoop_perf'] = HadoopPerformanceService(self.service_context(1), self.hadoop)
-        self.hadoop_perf = self.services['hadoop_perf']
+        self.hadoop_perf = HadoopPerformanceService(test_context, 1, self.hadoop)
 
     def run(self):
         self.hadoop_perf.run()
@@ -30,8 +29,7 @@ class HadoopV2SetupTest(HadoopTest):
 
     def __init__(self, test_context):
         super(HadoopV2SetupTest, self).__init__(test_context, 2, hadoop_distro='cdh', hadoop_version=2)
-        self.services['hadoop_perf'] = HadoopPerformanceService(self.service_context(1), self.hadoop)
-        self.hadoop_perf = self.services['hadoop_perf']
+        self.hadoop_perf = HadoopPerformanceService(test_context, 1, self.hadoop)
 
     def run(self):
         self.hadoop_perf.run()
@@ -41,8 +39,7 @@ class HDPSetupTest(HadoopTest):
 
     def __init__(self, test_context):
         super(HDPSetupTest, self).__init__(test_context, 2, hadoop_distro='hdp', hadoop_version=2)
-        self.services['hadoop_perf'] = HadoopPerformanceService(self.service_context(1), self.hadoop)
-        self.hadoop_perf = self.services['hadoop_perf']
+        self.hadoop_perf = HadoopPerformanceService(test_context, 1, self.hadoop)
 
     def run(self):
         self.hadoop_perf.run()

@@ -22,10 +22,10 @@ class MiniTest(Test):
     def __init__(self, test_context):
         super(MiniTest, self).__init__(test_context=test_context)
 
-        self.services['zk'] = ZookeeperService(self.service_context(num_nodes=1))
-        self.services['kafka'] = KafkaService(self.service_context(num_nodes=1), self.services['zk'])
+        self.zk = ZookeeperService(test_context, 1)
+        self.kafka = KafkaService(test_context, 1, self.zk)
 
     def run(self):
-        self.services['zk'].start()
-        self.services['kafka'].start()
+        self.zk.start()
+        self.kafka.start()
 

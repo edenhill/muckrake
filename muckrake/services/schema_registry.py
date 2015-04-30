@@ -43,13 +43,13 @@ SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES = {"Content-Type": SCHEMA_REGISTRY_V1
 
 
 class SchemaRegistryService(Service):
-    def __init__(self, service_context, zk, kafka):
+    def __init__(self, context, num_nodes, zk, kafka):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type zk: ZookeeperService
         :type kafka: muckrake.services.kafka.KafkaService
         """
-        super(SchemaRegistryService, self).__init__(service_context)
+        super(SchemaRegistryService, self).__init__(context, num_nodes)
         self.zk = zk
         self.kafka = kafka
         self.port = 8081

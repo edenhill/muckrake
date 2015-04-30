@@ -32,14 +32,14 @@ KAFKA_REST_DEFAULT_REQUEST_PROPERTIES = {"Content-Type": KAFKA_V1_JSON_WEIGHTED,
 
 
 class KafkaRestService(Service):
-    def __init__(self, service_context, zk, kafka, schema_registry=None):
+    def __init__(self, context, num_nodes, zk, kafka, schema_registry=None):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type zk: ZookeeperService
         :type kafka: muckrake.services.kafka.KafkaService
         :type schema_registry: SchemaRegistryService
         """
-        super(KafkaRestService, self).__init__(service_context)
+        super(KafkaRestService, self).__init__(context, num_nodes)
         self.zk = zk
         self.kafka = kafka
         self.schema_registry = schema_registry

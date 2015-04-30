@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from ducktape.tests.test import Test
-from ducktape.services.service_registry import ServiceRegistry
 
 from muckrake.services.zookeeper import ZookeeperService
 from muckrake.services.kafka import KafkaService
@@ -29,32 +28,20 @@ class EverythingRunsTest(Test):
         """:type test_context: ducktape.tests.test.TestContext"""
         super(EverythingRunsTest, self).__init__(test_context=test_context)
 
-        # register a bunch of services
-        self.services = ServiceRegistry()
-        self.services['zk'] = ZookeeperService(self.service_context(num_nodes=2))
-
-        self.services['kafka'] = KafkaService(self.service_context(num_nodes=1), self.services['zk'])
-
-        self.services['schema_registry'] = SchemaRegistryService(
-            self.service_context(num_nodes=1),
-            self.services['zk'], self.services['kafka'])
-
-        self.services['resty_proxy'] = KafkaRestService(
-            self.service_context(num_nodes=1),
-            self.services['zk'], self.services['kafka'], self.services['schema_registry'])
-
-        self.services['register_driver'] = RegisterSchemasService(
-            self.service_context(num_nodes=1),
-            self.services['schema_registry'],
-            retry_wait_sec=.02, num_tries=5,
-            max_time_seconds=10, max_schemas=50)
+        self.zk = ZookeeperService(test_context, num_nodes=2)
+        self.kafka = KafkaService(test_context, 1, self.zk)
+        self.schema_registry = SchemaRegistryService(test_context, 1, self.zk, self.kafka)
+        self.rest_proxy = KafkaRestService(test_context, 1, self.zk, self.kafka, self.schema_registry)
+        self.register_driver = RegisterSchemasService(
+            test_context, 1, self.schema_registry,
+            retry_wait_sec=.02, num_tries=5, max_time_seconds=10, max_schemas=50)
 
     def run(self):
-        self.services['zk'].start()
-        self.services['kafka'].start()
-        self.services['schema_registry'].start()
-        self.services['resty_proxy'].start()
+        self.zk.start()
+        self.kafka.start()
+        self.schema_registry.start()
+        self.rest_proxy.start()
 
-        self.services['register_driver'].start()
-        self.services['register_driver'].wait() # block until register_driver finishes
+        self.register_driver.start()
+        self.register_driver.wait()  # block until register_driver finishes
 

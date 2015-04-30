@@ -18,26 +18,26 @@ import time
 import abc
 
 
-def create_hadoop_service(service_context, hadoop_distro, hadoop_version):
+def create_hadoop_service(context, num_nodes, hadoop_distro, hadoop_version):
     if hadoop_distro == 'cdh':
         hadoop_home = '/opt/hadoop-cdh/'
         if hadoop_version == 1:
-            return CDHV1Service(service_context, hadoop_home)
+            return CDHV1Service(context, num_nodes, hadoop_home)
         else:
-            return CDHV2Service(service_context, hadoop_home)
+            return CDHV2Service(context, num_nodes, hadoop_home)
     else:
         hadoop_home = '/usr/hdp/current/hadoop-hdfs-namenode/../hadoop/'
-        return HDPService(service_context, hadoop_home)
+        return HDPService(context, num_nodes, hadoop_home)
 
 
 class HDFSService(Service):
-    def __init__(self, service_context, hadoop_home, hadoop_distro):
+    def __init__(self, context, num_nodes, hadoop_home, hadoop_distro):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         :type hadoop_distro: str
         """
-        super(HDFSService, self).__init__(service_context)
+        super(HDFSService, self).__init__(context, num_nodes)
         self.master_host = None
         self.slaves = []
         self.hadoop_home = hadoop_home
@@ -45,10 +45,16 @@ class HDFSService(Service):
         self.hadoop_bin_dir = 'bin'
         self.hadoop_example_jar = None
 
+        self.logs = {"hdfs_log": "/mnt/logs"}
+
     def start(self):
         """Override Service.start
         This lets us bring HDFS on all nodes before bringing up hadoop.
         """
+
+        # Since we're overriding start, we need to manually allocate nodes
+        self.allocate_nodes()
+
         for idx, node in enumerate(self.nodes, 1):
             if idx == 1:
                 self.master_host = node.account.hostname
@@ -56,7 +62,6 @@ class HDFSService(Service):
             self.create_hdfs_dirs(node)
             self.distribute_hdfs_confs(node)
             self.logger.info("Stopping HDFS on %s", node.account.hostname)
-            # self._stop_and_clean_internal(node, allow_fail=True)
             self.stop_node(node)
             self.clean_node(node)
 
@@ -130,12 +135,12 @@ class HDFSService(Service):
 
 
 class CDHV1Service(HDFSService):
-    def __init__(self, service_context, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         """
-        super(CDHV1Service, self).__init__(service_context, hadoop_home, 'cdh')
+        super(CDHV1Service, self).__init__(context, num_nodes, hadoop_home, 'cdh')
         self.hadoop_bin_dir = 'bin-mapreduce1'
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce1/hadoop-examples-2.5.0-mr1-cdh5.3.0.jar'
@@ -222,12 +227,12 @@ class CDHV1Service(HDFSService):
 
 
 class CDHV2Service(HDFSService):
-    def __init__(self, service_context, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         """
-        super(CDHV2Service, self).__init__(service_context, hadoop_home, 'cdh')
+        super(CDHV2Service, self).__init__(context, num_nodes, hadoop_home, 'cdh')
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar'
 
@@ -319,12 +324,12 @@ class CDHV2Service(HDFSService):
 
 
 class HDPService(HDFSService):
-    def __init__(self, service_context, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         """
-        super(HDPService, self).__init__(service_context, hadoop_home, 'hdp')
+        super(HDPService, self).__init__(context, num_nodes, hadoop_home, 'hdp')
         self.hadoop_example_jar = '/usr/hdp/current/hadoop-mapreduce-client/hadoop-mapreduce-examples-*.jar'
         self.yarn_bin_path = '/usr/hdp/current/hadoop-yarn-resourcemanager/'
         self.hdfs_bin_path = '/usr/hdp/current/hadoop-hdfs-namenode/'

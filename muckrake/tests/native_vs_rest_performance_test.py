@@ -34,18 +34,16 @@ class NativeVsRestProducerPerformance(RestProxyTest):
         batch_size = 8196
         acks = 1
 
-        self.services['producer_perf'] = ProducerPerformanceService(
-            self.service_context(1), self.kafka,
+        self.producer_perf = ProducerPerformanceService(
+            test_context, 1, self.kafka,
             topic="test-rep-one", num_records=msgs, record_size=msg_size, throughput=-1,
             settings={'batch.size':batch_size, 'acks':acks}
         )
-        self.producer_perf = self.services['producer_perf']
 
-        self.services['rest_producer_perf'] = RestProducerPerformanceService(
-            self.service_context(1), self.rest,
+        self.rest_producer_perf = RestProducerPerformanceService(
+            test_context, 1, self.rest,
             topic="test-rep-one", num_records=msgs, record_size=msg_size, batch_size=batch_size, throughput=-1
         )
-        self.rest_producer_perf = self.services['rest_producer_perf']
 
     def run(self):
         self.producer_perf.run()
@@ -73,24 +71,21 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
         acks = 1 # default for REST proxy, which isn't yet configurable
         nthreads = 1 # not configurable for REST proxy
 
-        self.services['producer'] = ProducerPerformanceService(
-            self.service_context(1), self.kafka,
+        self.producer = ProducerPerformanceService(
+            test_context, 1, self.kafka,
             topic="test", num_records=msgs+1000, record_size=msg_size, throughput=-1,
             settings={'batch.size':batch_size, 'acks': acks}
         )
-        self.producer = self.services['producer']
 
-        self.services['consumer_perf'] = ConsumerPerformanceService(
-            self.service_context(1), self.kafka,
+        self.consumer_perf = ConsumerPerformanceService(
+            test_context, 1, self.kafka,
             topic="test", num_records=msgs, throughput=-1, threads=nthreads
         )
-        self.consumer_perf = self.services['consumer_perf']
 
-        self.services['rest_consumer_perf'] = RestConsumerPerformanceService(
-            self.service_context(1), self.rest,
+        self.rest_consumer_perf = RestConsumerPerformanceService(
+            test_context, 1, self.rest,
             topic="test", num_records=msgs, throughput=-1
         )
-        self.rest_consumer_perf = self.services['rest_consumer_perf']
 
     def run(self):
         # Seed data. FIXME currently the REST consumer isn't properly finishing

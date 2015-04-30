@@ -25,11 +25,10 @@ class SchemaRegistryBenchmark(SchemaRegistryTest):
         self.num_schemas = 10000
         self.schemas_per_sec = 1000
 
-        self.services['schema_registry_perf'] = SchemaRegistryPerformanceService(
-            self.service_context(self.num_schema_registry),
+        self.schema_registry_perf = SchemaRegistryPerformanceService(
+            test_context, self.num_schema_registry,
             self.schema_registry, self.subject, self.num_schemas, self.schemas_per_sec, settings={}
         )
-        self.schema_registry_perf = self.services['schema_registry_perf']
 
     def run(self):
         self.logger.info("Running SchemaRegistryBenchmark: registering %d schemas on %d schema registry node." %

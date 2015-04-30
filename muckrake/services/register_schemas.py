@@ -48,8 +48,8 @@ class RegisterSchemasService(BackgroundThreadService):
         worker_threads                  Background registration threads
     """
 
-    def __init__(self, service_context, schema_registry, retry_wait_sec, num_tries, max_time_seconds=60, max_schemas=float("inf")):
-        super(RegisterSchemasService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, schema_registry, retry_wait_sec, num_tries, max_time_seconds=60, max_schemas=float("inf")):
+        super(RegisterSchemasService, self).__init__(context, num_nodes)
 
         self.subject = "test_subject"
         self.schema_registry = schema_registry
