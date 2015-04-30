@@ -64,11 +64,12 @@ class HDFSService(Service):
             if idx == 1:
                 self.master_host = node.account.hostname
 
-            self.create_hdfs_dirs(node)
-            self.distribute_hdfs_confs(node)
             self.logger.info("Stopping HDFS on %s", node.account.hostname)
             self.stop_node(node)
             self.clean_node(node)
+
+            self.create_hdfs_dirs(node)
+            self.distribute_hdfs_confs(node)
 
             if idx == 1:
                 self.format_namenode(node)
@@ -79,11 +80,11 @@ class HDFSService(Service):
             time.sleep(5)  # wait for start up
 
     def stop_node(self, node):
-        node.account.kill_process(self, "java", clean_shutdown=False)
+        node.account.kill_process("java", clean_shutdown=False)
 
     def clean_node(self, node):
         self.logger.info("Removing HDFS directories on %s", node.account.hostname)
-        node.account.ssh("rm -rf /mnt/data/ /mnt/name/ /mnt/logs")
+        node.account.ssh("rm -rf /mnt/data/ /mnt/name/ /mnt/logs /mnt/hadoop-env.sh /mnt/core-site.xml /mnt/hdfs-site.xml")
 
     def create_hdfs_dirs(self, node):
         self.logger.info("Creating hdfs directories on %s", node.account.hostname)
@@ -180,7 +181,8 @@ class CDHV1Service(HDFSService):
 
     def clean_node(self, node):
         super(CDHV1Service, self).clean_node(node)
-        node.account.ssh("rm -rf /mnt/mapred-site.xml")
+        self.logger.debug("Removing CDH files")
+        node.account.ssh("rm -rf /mnt/mapred-site.xml /mnt/hadoop-metrics.properties", allow_fail=True)
 
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing MR1 confs to %s", node.account.hostname)
@@ -270,7 +272,7 @@ class CDHV2Service(HDFSService):
 
     def clean_node(self, node):
         super(CDHV2Service, self).clean_node(node)
-        node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
+        node.account.ssh("rm -rf /mnt/hadoop-metrics.properties /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh", allow_fail=True)
 
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
@@ -359,10 +361,21 @@ class HDPService(HDFSService):
             time.sleep(5)
 
     def stop_node(self, node):
-        pass
+        super(HDPService, self).stop_node(node)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
+                         "--config /mnt "
+                         "stop nodemanager", allow_fail=True)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
+                         "--config /mnt "
+                         "stop resourcemanager", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs "
+                         + self.historyserver_bin_path + "sbin/mr-jobhistory-daemon.sh"
+                         " --config /mnt stop historyserver", allow_fail=True)
 
     def clean_node(self, node):
-        pass
+        super(HDPService, self).clean_node(node)
+        self.logger.debug("Removing HDP files on " + node.account.hostname)
+        node.account.ssh("rm -rf /mnt/hadoop-metrics.properties /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh /mnt/capacity-scheduler.xml", allow_fail=True)
 
     def config_on_hdfs(self, node):
         self.logger.info("Make necessary YARN configuration in HDFS at %s", node.account.hostname)

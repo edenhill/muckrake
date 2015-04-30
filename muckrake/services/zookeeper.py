@@ -67,6 +67,7 @@ quorumListenOnAllIPs=true
         node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop-service zookeeper", allow_fail=allow_fail)
 
     def clean_node(self, node, allow_fail=True):
+        self.logger.info("Cleaning ZK node %d on %s", self.idx(node), node.account.hostname)
         node.account.ssh("rm -rf /mnt/zookeeper /mnt/zookeeper.properties /mnt/zk.log", allow_fail=allow_fail)
 
     def connect_setting(self):

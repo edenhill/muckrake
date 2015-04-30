@@ -245,6 +245,11 @@ class HadoopPerformanceService(PerformanceService):
         for line in node.account.ssh_capture(cmd):
             self.logger.info("Hadoop performance %d: %s", idx, line.strip())
 
+    def clean_node(self, node):
+        self.logger.debug("Cleaning %s on node %d on %s", self.__class__.__name__, self.idx(node), node.account.hostname)
+        files = ['/mnt/capacity-scheduler.xml', '/mnt/core-site.xml', '/mnt/hadoop-env.sh', '/mnt/hadoop-metrics.properties', '/mnt/hdfs-site.xml', '/mnt/mapred-site.xml', '/mnt/yarn-env.sh', '/mnt/yarn-site.xml']
+        cmd = "rm -rf %s" % " ".join(files)
+        node.account.ssh(cmd, allow_fail=True)
 
 class CamusPerformanceService(PerformanceService):
     def __init__(self, context, num_nodes, kafka, hadoop, schema_registry, rest, settings={}):
@@ -293,6 +298,12 @@ class CamusPerformanceService(PerformanceService):
         # Parse and save the last line's information
         # self.results[idx-1] = parse_performance_output(last)
         node.account.ssh("rm -rf /mnt/camus.properties")
+
+    def clean_node(self, node):
+        self.logger.debug("Cleaning %s on node %d on %s", self.__class__.__name__, self.idx(node), node.account.hostname)
+        files = ['/mnt/capacity-scheduler.xml', '/mnt/core-site.xml', '/mnt/hadoop-env.sh', '/mnt/hadoop-metrics.properties', '/mnt/hdfs-site.xml', '/mnt/mapred-site.xml', '/mnt/yarn-env.sh', '/mnt/yarn-site.xml', '/mnt/camus.properties']
+        cmd = "rm -rf %s" % " ".join(files)
+        node.account.ssh(cmd, allow_fail=True)
 
     def produce_avro(self, url):
         value_schema = {
