@@ -14,251 +14,38 @@
 
 from ducktape.services.service import Service
 
-import time, re
-from .schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
-from .kafka_rest_utils import KAFKA_REST_DEFAULT_REQUEST_PROPERTIES
+import time
 import abc
 
 
-class ZookeeperService(Service):
-    def __init__(self, service_context):
-        """
-        :type service_context ducktape.services.service.ServiceContext
-        """
-        super(ZookeeperService, self).__init__(service_context)
-        self.logs = {"zk_log": "/mnt/zk.log"}
-
-    def start(self):
-        super(ZookeeperService, self).start()
-        config = """
-dataDir=/mnt/zookeeper
-clientPort=2181
-maxClientCnxns=0
-initLimit=5
-syncLimit=2
-quorumListenOnAllIPs=true
-"""
-        for idx, node in enumerate(self.nodes, 1):
-            template_params = { 'idx': idx, 'host': node.account.hostname }
-            config += "server.%(idx)d=%(host)s:2888:3888\n" % template_params
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting ZK node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            node.account.ssh("mkdir -p /mnt/zookeeper")
-            node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
-            node.account.create_file("/mnt/zookeeper.properties", config)
-            node.account.ssh(
-                "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(zk_log)s 2>> %(zk_log)s &"
-                % self.logs)
-            time.sleep(5)  # give it some time to start
-
-    def stop_node(self, node, allow_fail=True):
-        # This uses Kafka-REST's stop service script because it's better behaved
-        # (knows how to wait) and sends SIGTERM instead of
-        # zookeeper-stop-server.sh's SIGINT. We don't actually care about clean
-        # shutdown here, so it's ok to use the bigger hammer
-        idx = self.idx(node)
-        self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
-        node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop-service zookeeper", allow_fail=allow_fail)
-
-    def clean_node(self, node, allow_fail=True):
-        node.account.ssh("rm -rf /mnt/zookeeper /mnt/zookeeper.properties /mnt/zk.log", allow_fail=allow_fail)
-
-    def stop(self):
-        """If the service left any running processes or data, clean them up."""
-        super(ZookeeperService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.stop_node(node, allow_fail=False)
-            self.clean_node(node)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
-        self.stop_node(node, allow_fail)
-        self.clean_node(node, allow_fail)
-
-    def connect_setting(self):
-        return ','.join([node.account.hostname + ':2181' for node in self.nodes])
-
-
-class KafkaRestService(Service):
-    def __init__(self, service_context, zk, kafka, schema_registry=None):
-        """
-        :type service_context ducktape.services.service.ServiceContext
-        :type zk: ZookeeperService
-        :type kafka: muckrake.services.kafka_service.KafkaService
-        :type schema_registry: SchemaRegistryService
-        """
-        super(KafkaRestService, self).__init__(service_context)
-        self.zk = zk
-        self.kafka = kafka
-        self.schema_registry = schema_registry
-        self.port = 8082
-
-    def start(self):
-        super(KafkaRestService, self).start()
-        template = open('templates/rest.properties').read()
-        zk_connect = self.zk.connect_setting()
-        bootstrapServers = self.kafka.bootstrap_servers()
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting REST node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            template_params = {
-                'id': idx,
-                'port': self.port,
-                'zk_connect': zk_connect,
-                'bootstrap_servers': bootstrapServers,
-                'schema_registry_url': None
-            }
-
-            if self.schema_registry is not None:
-                template_params.update({'schema_registry_url': self.schema_registry.url()})
-
-            self.logger.info("Schema registry url for Kafka rest proxy is %s", template_params['schema_registry_url'])
-            config = template % template_params
-            node.account.create_file("/mnt/rest.properties", config)
-            node.account.ssh("/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> /mnt/rest.log 2>> /mnt/rest.log &")
-
-            node.account.wait_for_http_service(self.port, headers=KAFKA_REST_DEFAULT_REQUEST_PROPERTIES)
-
-    def stop(self):
-        super(KafkaRestService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping REST node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("/opt/kafka-rest/bin/kafka-rest-stop", allow_fail=allow_fail)
-        node.account.ssh("rm -rf /mnt/rest.properties /mnt/rest.log")
-
-    def url(self, idx=1):
-        return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
-
-
-class SchemaRegistryService(Service):
-    def __init__(self, service_context, zk, kafka):
-        """
-        :type service_context ducktape.services.service.ServiceContext
-        :type zk: ZookeeperService
-        :type kafka: muckrake.services.kafka_service.KafkaService
-        """
-        super(SchemaRegistryService, self).__init__(service_context)
-        self.zk = zk
-        self.kafka = kafka
-        self.port = 8081
-
-    def start(self):
-        super(SchemaRegistryService, self).start()
-
-        template = open('templates/schema-registry.properties').read()
-        template_params = {
-            'kafkastore_topic': '_schemas',
-            'kafkastore_url': self.zk.connect_setting(),
-            'rest_port': self.port
-        }
-        config = template % template_params
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting Schema Registry node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            self.start_node(node, config)
-
-            # Wait for the server to become live
-            node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
-
-    def stop(self):
-        """If the service left any running processes or data, clean them up."""
-        super(SchemaRegistryService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
-            self._stop_and_clean(node, True)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("/opt/schema-registry/bin/schema-registry-stop", allow_fail=allow_fail)
-        node.account.ssh("rm -rf /mnt/schema-registry.properties /mnt/schema-registry.log")
-
-    def stop_node(self, node, clean_shutdown=True, allow_fail=True):
-        node.account.kill_process("schema-registry", clean_shutdown, allow_fail)
-
-    def start_node(self, node, config=None):
-        if config is None:
-            template = open('templates/schema-registry.properties').read()
-            template_params = {
-                'kafkastore_topic': '_schemas',
-                'kafkastore_url': self.zk.connect_setting(),
-                'rest_port': self.port
-            }
-            config = template % template_params
-
-        node.account.create_file("/mnt/schema-registry.properties", config)
-        cmd = "/opt/schema-registry/bin/schema-registry-start /mnt/schema-registry.properties " \
-            + "1>> /mnt/schema-registry.log 2>> /mnt/schema-registry.log &"
-
-        self.logger.debug("Attempting to start node with command: " + cmd)
-        node.account.ssh(cmd)
-
-    def restart_node(self, node, wait_sec=0, clean_shutdown=True):
-        self.stop_node(node, clean_shutdown, allow_fail=True)
-        time.sleep(wait_sec)
-        self.start_node(node)
-
-    def get_master_node(self):
-        node = self.nodes[0]
-
-        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s get /schema_registry/schema_registry_master" \
-              % self.zk.connect_setting()
-
-        host = None
-        port_str = None
-        self.logger.debug("Querying zookeeper to find current schema registry master: \n%s" % cmd)
-        for line in node.account.ssh_capture(cmd):
-            match = re.match("^{\"host\":\"(.*)\",\"port\":(\d+),", line)
-            if match is not None:
-                groups = match.groups()
-                host = groups[0]
-                port_str = groups[1]
-                break
-
-        if host is None:
-            raise Exception("Could not find schema registry master.")
-
-        base_url = "%s:%s" % (host, port_str)
-        self.logger.debug("schema registry master is %s" % base_url)
-
-        # Return the node with this base_url
-        for idx, node in enumerate(self.nodes, 1):
-            if self.url(idx).find(base_url) >= 0:
-                return self.get_node(idx)
-
-    def url(self, idx=1):
-        return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
-
-
-def create_hadoop_service(service_context, hadoop_distro, hadoop_version):
+def create_hadoop_service(context, num_nodes, hadoop_distro, hadoop_version):
     if hadoop_distro == 'cdh':
         hadoop_home = '/opt/hadoop-cdh/'
         if hadoop_version == 1:
-            return CDHV1Service(service_context, hadoop_home)
+            return CDHV1Service(context, num_nodes, hadoop_home)
         else:
-            return CDHV2Service(service_context, hadoop_home)
+            return CDHV2Service(context, num_nodes, hadoop_home)
     else:
         hadoop_home = '/usr/hdp/current/hadoop-hdfs-namenode/../hadoop/'
-        return HDPService(service_context, hadoop_home)
+        return HDPService(context, num_nodes, hadoop_home)
 
 
 class HDFSService(Service):
-    def __init__(self, service_context, hadoop_home, hadoop_distro):
+
+    logs = {
+        "hadoop_logs": {
+            "path": "/mnt/logs",
+            "collect_default": False
+        }
+    }
+
+    def __init__(self, context, num_nodes, hadoop_home, hadoop_distro):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         :type hadoop_distro: str
         """
-        super(HDFSService, self).__init__(service_context)
+        super(HDFSService, self).__init__(context, num_nodes)
         self.master_host = None
         self.slaves = []
         self.hadoop_home = hadoop_home
@@ -266,17 +53,26 @@ class HDFSService(Service):
         self.hadoop_bin_dir = 'bin'
         self.hadoop_example_jar = None
 
+
+
     def start(self):
-        super(HDFSService, self).start()
+        """Override Service.start
+        This lets us bring HDFS on all nodes before bringing up hadoop.
+        """
+
+        # Since we're overriding start, we need to manually allocate nodes
+        self.allocate_nodes()
 
         for idx, node in enumerate(self.nodes, 1):
             if idx == 1:
                 self.master_host = node.account.hostname
 
+            self.logger.info("Stopping HDFS on %s", node.account.hostname)
+            self.stop_node(node)
+            self.clean_node(node)
+
             self.create_hdfs_dirs(node)
             self.distribute_hdfs_confs(node)
-            self.logger.info("Stopping HDFS on %s", node.account.hostname)
-            self._stop_and_clean_internal(node, allow_fail=True)
 
             if idx == 1:
                 self.format_namenode(node)
@@ -285,6 +81,13 @@ class HDFSService(Service):
                 self.slaves.append(node.account.hostname)
                 self.start_datanode(node)
             time.sleep(5)  # wait for start up
+
+    def stop_node(self, node):
+        node.account.kill_process("java", clean_shutdown=False)
+
+    def clean_node(self, node):
+        self.logger.info("Removing HDFS directories on %s", node.account.hostname)
+        node.account.ssh("rm -rf /mnt/data/ /mnt/name/ /mnt/logs /mnt/hadoop-env.sh /mnt/core-site.xml /mnt/hdfs-site.xml")
 
     def create_hdfs_dirs(self, node):
         self.logger.info("Creating hdfs directories on %s", node.account.hostname)
@@ -339,30 +142,14 @@ class HDFSService(Service):
             "HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/hadoop-daemon.sh "
             "--config /mnt/ start datanode")
 
-    def stop(self):
-        super(HDFSService, self).stop()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self._stop_and_clean_internal(node)
-            node.free()
-
-    def _stop_and_clean_internal(self, node, allow_fail=False):
-        self.logger.info("Force cleaning HDFS processes on %s", node.account.hostname)
-        pids = list(node.account.ssh_capture("ps ax | grep java | grep -v grep | awk '{print $1}'", allow_fail=allow_fail))
-        for pid in pids:
-            node.account.ssh("kill -9 " + pid)
-        time.sleep(5)  # the stop script doesn't wait
-        self.logger.info("Removing HDFS directories on %s", node.account.hostname)
-        node.account.ssh("rm -rf /mnt/data/ /mnt/name/ /mnt/logs")
-
 
 class CDHV1Service(HDFSService):
-    def __init__(self, service_context, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         """
-        super(CDHV1Service, self).__init__(service_context, hadoop_home, 'cdh')
+        super(CDHV1Service, self).__init__(context, num_nodes, hadoop_home, 'cdh')
         self.hadoop_bin_dir = 'bin-mapreduce1'
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce1/hadoop-examples-2.5.0-mr1-cdh5.3.0.jar'
@@ -382,6 +169,23 @@ class CDHV1Service(HDFSService):
             else:
                 self.start_tasktracker(node)
             time.sleep(5)
+
+    def stop_node(self, node):
+        super(CDHV1Service, self).stop_node(node)
+        node.account.ssh("HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "/bin-mapreduce1/hadoop-daemon.sh --config /mnt "
+                         "stop tasktracker", allow_fail=True)
+        node.account.ssh("HADOOP_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "/bin-mapreduce1/hadoop-daemon.sh --config /mnt "
+                         "stop jobtracker", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "sbin/mr-jobhistory-daemon.sh --config /mnt "
+                         "stop historyserver", allow_fail=True)
+
+    def clean_node(self, node):
+        super(CDHV1Service, self).clean_node(node)
+        self.logger.debug("Removing CDH files")
+        node.account.ssh("rm -rf /mnt/mapred-site.xml /mnt/hadoop-metrics.properties", allow_fail=True)
 
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing MR1 confs to %s", node.account.hostname)
@@ -433,12 +237,12 @@ class CDHV1Service(HDFSService):
 
 
 class CDHV2Service(HDFSService):
-    def __init__(self, service_context, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         """
-        super(CDHV2Service, self).__init__(service_context, hadoop_home, 'cdh')
+        super(CDHV2Service, self).__init__(context, num_nodes, hadoop_home, 'cdh')
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar'
 
@@ -457,7 +261,22 @@ class CDHV2Service(HDFSService):
             else:
                 self.start_nodemanager(node)
             time.sleep(5)
-    
+
+    def stop_node(self, node):
+        super(CDHV2Service, self).stop_node(node)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/yarn-daemon.sh --config /mnt "
+            "stop nodemanager &", allow_fail=True)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.hadoop_home + "/sbin/yarn-daemon.sh --config /mnt "
+            "stop resourcemanager &", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs " + self.hadoop_home +
+                         "/sbin/mr-jobhistory-daemon.sh --config /mnt "
+                         "stop historyserver", allow_fail=True)
+        time.sleep(5)
+
+    def clean_node(self, node):
+        super(CDHV2Service, self).clean_node(node)
+        node.account.ssh("rm -rf /mnt/hadoop-metrics.properties /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh", allow_fail=True)
+
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
@@ -515,12 +334,12 @@ class CDHV2Service(HDFSService):
 
 
 class HDPService(HDFSService):
-    def __init__(self, service_context, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type hadoop_home: str
         """
-        super(HDPService, self).__init__(service_context, hadoop_home, 'hdp')
+        super(HDPService, self).__init__(context, num_nodes, hadoop_home, 'hdp')
         self.hadoop_example_jar = '/usr/hdp/current/hadoop-mapreduce-client/hadoop-mapreduce-examples-*.jar'
         self.yarn_bin_path = '/usr/hdp/current/hadoop-yarn-resourcemanager/'
         self.hdfs_bin_path = '/usr/hdp/current/hadoop-hdfs-namenode/'
@@ -543,6 +362,23 @@ class HDPService(HDFSService):
             else:
                 self.start_nodemanager(node)
             time.sleep(5)
+
+    def stop_node(self, node):
+        super(HDPService, self).stop_node(node)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
+                         "--config /mnt "
+                         "stop nodemanager", allow_fail=True)
+        node.account.ssh("YARN_LOG_DIR=/mnt/logs " + self.yarn_bin_path + "sbin/yarn-daemon.sh "
+                         "--config /mnt "
+                         "stop resourcemanager", allow_fail=True)
+        node.account.ssh("HADOOP_MAPRED_LOG_DIR=/mnt/logs "
+                         + self.historyserver_bin_path + "sbin/mr-jobhistory-daemon.sh"
+                         " --config /mnt stop historyserver", allow_fail=True)
+
+    def clean_node(self, node):
+        super(HDPService, self).clean_node(node)
+        self.logger.debug("Removing HDP files on " + node.account.hostname)
+        node.account.ssh("rm -rf /mnt/hadoop-metrics.properties /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh /mnt/capacity-scheduler.xml", allow_fail=True)
 
     def config_on_hdfs(self, node):
         self.logger.info("Make necessary YARN configuration in HDFS at %s", node.account.hostname)
@@ -625,3 +461,16 @@ class HDPService(HDFSService):
                          " --config /mnt stop historyserver", allow_fail=allow_fail)
         time.sleep(5)  # the stop script doesn't wait
         node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
+
+
+
+
+
+
+
+
+
+
+
+
+

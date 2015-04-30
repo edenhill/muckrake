@@ -17,27 +17,28 @@ import time, re, json
 
 
 class KafkaService(Service):
-    def __init__(self, service_context, zk, topics=None):
+
+    logs = {
+        "kafka_log": {
+            "path": "/mnt/kafka.log",
+            "collect_default": True},
+        "kafka_data": {
+            "path": "/mnt/kafka-logs",
+            "collect_default": False}
+    }
+
+    def __init__(self, context, num_nodes, zk, topics=None):
         """
-        :type service_context ducktape.services.service.ServiceContext
+        :type context
         :type zk: ZookeeperService
         :type topics: dict
         """
-        super(KafkaService, self).__init__(service_context)
+        super(KafkaService, self).__init__(context, num_nodes)
         self.zk = zk
         self.topics = topics
 
     def start(self):
         super(KafkaService, self).start()
-
-        # Start all nodes in this Kafka service
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Starting Kafka node %d on %s", idx, node.account.hostname)
-            self._stop_and_clean(node, allow_fail=True)
-            self.start_node(node)
-
-            # wait for start up
-            time.sleep(6)
 
         # Create topics if necessary
         if self.topics is not None:
@@ -47,6 +48,29 @@ class KafkaService(Service):
 
                 topic_cfg["topic"] = topic
                 self.create_topic(topic_cfg)
+
+    def start_node(self, node, config=None):
+        if config is None:
+            template = open('templates/kafka.properties').read()
+            template_params = {
+                'broker_id': self.idx(node),
+                'hostname': node.account.hostname,
+                'zk_connect': self.zk.connect_setting()
+            }
+
+            config = template % template_params
+
+        node.account.create_file("/mnt/kafka.properties", config)
+        cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
+        self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
+        node.account.ssh(cmd)
+        time.sleep(5)
+
+    def stop_node(self, node, clean_shutdown=True, allow_fail=True):
+        node.account.kill_process("kafka", clean_shutdown, allow_fail)
+
+    def clean_node(self, node):
+        node.account.ssh("rm -rf /mnt/kafka-logs /mnt/kafka.properties /mnt/kafka.log")
 
     def create_topic(self, topic_cfg):
         node = self.nodes[0] # any node is fine here
@@ -142,39 +166,6 @@ class KafkaService(Service):
 
         self.logger.debug("Verify partition reassignment:")
         self.logger.debug(output)
-
-    def stop(self):
-        """If the service left any running processes or data, clean them up."""
-        super(KafkaService, self).stop()
-        
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, idx, node.account.hostname))
-            self._stop_and_clean(node, allow_fail=True)
-            node.free()
-
-    def _stop_and_clean(self, node, allow_fail=False):
-        node.account.ssh("/opt/kafka/bin/kafka-server-stop.sh", allow_fail=allow_fail)
-        time.sleep(5)  # the stop script doesn't wait
-        node.account.ssh("rm -rf /mnt/kafka-logs /mnt/kafka.properties /mnt/kafka.log")
-
-    def stop_node(self, node, clean_shutdown=True, allow_fail=True):
-        node.account.kill_process("kafka", clean_shutdown, allow_fail)
-
-    def start_node(self, node, config=None):
-        if config is None:
-            template = open('templates/kafka.properties').read()
-            template_params = {
-                'broker_id': self.idx(node),
-                'hostname': node.account.hostname,
-                'zk_connect': self.zk.connect_setting()
-            }
-
-            config = template % template_params
-
-        node.account.create_file("/mnt/kafka.properties", config)
-        cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
-        self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
-        node.account.ssh(cmd)
 
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):
         self.stop_node(node, clean_shutdown, allow_fail=True)

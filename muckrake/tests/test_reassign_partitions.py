@@ -65,12 +65,6 @@ class TestReassignPartitions(KafkaTest):
         self.num_partitions = 2
         self.timeout_sec = 60
 
-    def setUp(self):
-        super(TestReassignPartitions, self).setUp()
-
-    def tearDown(self):
-        super(TestReassignPartitions, self).tearDown()
-
     def run(self):
 
         partition_info = parse_describe_topic(self.kafka.describe_topic("test_topic"))

@@ -12,50 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.services.service import Service
-import threading
+from muckrake.services.background_thread import BackgroundThreadService
+
 import requests
 import json
 
 
-class PerformanceService(Service):
-    def __init__(self, service_context):
-        super(PerformanceService, self).__init__(service_context)
-
-    def start(self):
-        super(PerformanceService, self).start()
-        self.worker_threads = []
-        self.results = [None] * len(self.nodes)
-        self.stats = [[] for x in range(len(self.nodes))]
-        for idx,node in enumerate(self.nodes,1):
-            self.logger.info("Running %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
-            worker = threading.Thread(
-                name=self.__class__.__name__ + "-worker-" + str(idx),
-                target=self._worker,
-                args=(idx,node)
-            )
-            worker.daemon = True
-            worker.start()
-            self.worker_threads.append(worker)
-
-    def wait(self):
-        super(PerformanceService, self).wait()
-        for idx,worker in enumerate(self.worker_threads,1):
-            self.logger.debug("Waiting for %s worker %d to finish", self.__class__.__name__, idx)
-            worker.join()
-        self.worker_threads = None
-
-    def stop(self):
-        super(PerformanceService, self).stop()
-        assert self.worker_threads is None, "%s.stop should only be called after wait" % self.__class__.__name__
-        for idx,node in enumerate(self.nodes,1):
-            self.logger.debug("Stopping %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
-            node.free()
+class PerformanceService(BackgroundThreadService):
+    def __init__(self, context, num_nodes):
+        super(PerformanceService, self).__init__(context, num_nodes)
+        self.results = [None] * self.num_nodes
+        self.stats = [[] for x in range(self.num_nodes)]
 
 
 class ProducerPerformanceService(PerformanceService):
-    def __init__(self, service_context, kafka, topic, num_records, record_size, throughput, settings={}, intermediate_stats=False):
-        super(ProducerPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, kafka, topic, num_records, record_size, throughput, settings={}, intermediate_stats=False):
+        super(ProducerPerformanceService, self).__init__(context, num_nodes)
         self.kafka = kafka
         self.args = {
             'topic': topic,
@@ -75,6 +47,7 @@ class ProducerPerformanceService(PerformanceService):
         for key,value in self.settings.items():
             cmd += " %s=%s" % (str(key), str(value))
         self.logger.debug("Producer performance %d command: %s", idx, cmd)
+
         def parse_stats(line):
             parts = line.split(',')
             return {
@@ -105,8 +78,8 @@ class ProducerPerformanceService(PerformanceService):
 
 
 class RestProducerPerformanceService(PerformanceService):
-    def __init__(self, service_context, rest, topic, num_records, record_size, batch_size, throughput, settings={}):
-        super(RestProducerPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, rest, topic, num_records, record_size, batch_size, throughput, settings={}):
+        super(RestProducerPerformanceService, self).__init__(context, num_nodes)
         self.rest = rest
         self.args = {
             'topic': topic,
@@ -148,8 +121,8 @@ class RestProducerPerformanceService(PerformanceService):
 
 
 class ConsumerPerformanceService(PerformanceService):
-    def __init__(self, service_context, kafka, topic, num_records, throughput, threads=1, settings={}):
-        super(ConsumerPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, kafka, topic, num_records, throughput, threads=1, settings={}):
+        super(ConsumerPerformanceService, self).__init__(context, num_nodes)
         self.kafka = kafka
         self.args = {
             'topic': topic,
@@ -181,8 +154,8 @@ class ConsumerPerformanceService(PerformanceService):
 
 
 class RestConsumerPerformanceService(PerformanceService):
-    def __init__(self, service_context, rest, topic, num_records, throughput, settings={}):
-        super(RestConsumerPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, rest, topic, num_records, throughput, settings={}):
+        super(RestConsumerPerformanceService, self).__init__(context, num_nodes)
         self.rest = rest
         self.args = {
             'topic': topic,
@@ -210,14 +183,14 @@ class RestConsumerPerformanceService(PerformanceService):
 
 
 class SchemaRegistryPerformanceService(PerformanceService):
-    def __init__(self, service_context, schema_registry, subject, num_schemas, schemas_per_sec, settings={}):
-        super(SchemaRegistryPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, schema_registry, subject, num_schemas, schemas_per_sec, settings={}):
+        super(SchemaRegistryPerformanceService, self).__init__(context, num_nodes)
         self.schema_registry = schema_registry
 
         self.args = {
-            'subject' : subject,
-            'num_schemas' : num_schemas,
-            'schemas_per_sec' : schemas_per_sec
+            'subject': subject,
+            'num_schemas': num_schemas,
+            'schemas_per_sec': schemas_per_sec
         }
         self.settings = settings
 
@@ -244,8 +217,8 @@ class HadoopPerformanceService(PerformanceService):
     """
     This is a simple MapReduce job that makes sure that Hadoop is setup correctly
     """
-    def __init__(self, service_context, hadoop, settings={}):
-        super(HadoopPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, hadoop, settings={}):
+        super(HadoopPerformanceService, self).__init__(context, num_nodes)
         self.hadoop = hadoop
         self.settings = settings
 
@@ -272,15 +245,22 @@ class HadoopPerformanceService(PerformanceService):
         for line in node.account.ssh_capture(cmd):
             self.logger.info("Hadoop performance %d: %s", idx, line.strip())
 
+    def clean_node(self, node):
+        self.logger.debug("Cleaning %s on node %d on %s", self.__class__.__name__, self.idx(node), node.account.hostname)
+        files = ['/mnt/capacity-scheduler.xml', '/mnt/core-site.xml', '/mnt/hadoop-env.sh', '/mnt/hadoop-metrics.properties', '/mnt/hdfs-site.xml', '/mnt/mapred-site.xml', '/mnt/yarn-env.sh', '/mnt/yarn-site.xml']
+        cmd = "rm -rf %s" % " ".join(files)
+        node.account.ssh(cmd, allow_fail=True)
 
 class CamusPerformanceService(PerformanceService):
-    def __init__(self, service_context, kafka, hadoop, schema_registry, rest, settings={}):
-        super(CamusPerformanceService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, kafka, hadoop, schema_registry, rest, settings={}):
+        super(CamusPerformanceService, self).__init__(context, num_nodes)
         self.kafka = kafka
         self.hadoop = hadoop
         self.schema_registry = schema_registry
         self.rest = rest
         self.settings = settings
+
+    def _worker(self, idx, node):
         camus_path = '/opt/camus/camus-example/'
         self.args = {
             'hadoop_path': self.hadoop.hadoop_home,
@@ -294,8 +274,6 @@ class CamusPerformanceService(PerformanceService):
             'rest_url': self.rest.url(),
             'topic': 'testAvro'
         }
-
-    def _worker(self, idx, node):
         args = self.args.copy()
 
         self.produce_avro(args['rest_url'] + '/topics/' + args['topic'])
@@ -320,6 +298,12 @@ class CamusPerformanceService(PerformanceService):
         # Parse and save the last line's information
         # self.results[idx-1] = parse_performance_output(last)
         node.account.ssh("rm -rf /mnt/camus.properties")
+
+    def clean_node(self, node):
+        self.logger.debug("Cleaning %s on node %d on %s", self.__class__.__name__, self.idx(node), node.account.hostname)
+        files = ['/mnt/capacity-scheduler.xml', '/mnt/core-site.xml', '/mnt/hadoop-env.sh', '/mnt/hadoop-metrics.properties', '/mnt/hdfs-site.xml', '/mnt/mapred-site.xml', '/mnt/yarn-env.sh', '/mnt/yarn-site.xml', '/mnt/camus.properties']
+        cmd = "rm -rf %s" % " ".join(files)
+        node.account.ssh(cmd, allow_fail=True)
 
     def produce_avro(self, url):
         value_schema = {
@@ -406,8 +390,8 @@ class CamusPerformanceService(PerformanceService):
 
 
 class EndToEndLatencyService(PerformanceService):
-    def __init__(self, service_context, kafka, topic, num_records, consumer_fetch_max_wait=100, acks=1):
-        super(EndToEndLatencyService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, kafka, topic, num_records, consumer_fetch_max_wait=100, acks=1):
+        super(EndToEndLatencyService, self).__init__(context, num_nodes)
         self.kafka = kafka
         self.args = {
             'topic': topic,
