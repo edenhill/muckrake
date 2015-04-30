@@ -16,17 +16,20 @@ from ducktape.services.service import Service
 
 import time
 
+
 class ZookeeperService(Service):
+
+    logs = {
+        "zk_log": {
+            "path": "/mnt/zk.log",
+            "collect_default": True}
+    }
+
     def __init__(self, context, num_nodes):
         """
         :type context
         """
         super(ZookeeperService, self).__init__(context, num_nodes)
-        self.logs = {
-            "zk_log": {
-                "path": "/mnt/zk.log",
-                "collect_default": True}
-        }
 
     def make_config(self):
         config = """

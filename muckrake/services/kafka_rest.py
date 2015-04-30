@@ -32,6 +32,13 @@ KAFKA_REST_DEFAULT_REQUEST_PROPERTIES = {"Content-Type": KAFKA_V1_JSON_WEIGHTED,
 
 
 class KafkaRestService(Service):
+
+    logs = {
+        "rest_log": {
+            "path": "/mnt/rest.log",
+            "collect_default": True}
+    }
+
     def __init__(self, context, num_nodes, zk, kafka, schema_registry=None):
         """
         :type context
@@ -44,12 +51,6 @@ class KafkaRestService(Service):
         self.kafka = kafka
         self.schema_registry = schema_registry
         self.port = 8082
-
-        self.logs = {
-            "rest_log": {
-                "path": "/mnt/rest.log",
-                "collect_default": True}
-        }
 
     def start_node(self, node):
         template = open('templates/rest.properties').read()

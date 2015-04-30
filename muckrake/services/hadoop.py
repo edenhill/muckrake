@@ -31,6 +31,14 @@ def create_hadoop_service(context, num_nodes, hadoop_distro, hadoop_version):
 
 
 class HDFSService(Service):
+
+    logs = {
+        "hadoop_logs": {
+            "path": "/mnt/logs",
+            "collect_default": False
+        }
+    }
+
     def __init__(self, context, num_nodes, hadoop_home, hadoop_distro):
         """
         :type context
@@ -45,12 +53,7 @@ class HDFSService(Service):
         self.hadoop_bin_dir = 'bin'
         self.hadoop_example_jar = None
 
-        self.logs = {
-            "hadoop_logs": {
-                "path": "/mnt/logs",
-                "collect_default": False
-            }
-        }
+
 
     def start(self):
         """Override Service.start
