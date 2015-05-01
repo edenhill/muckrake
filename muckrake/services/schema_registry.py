@@ -133,7 +133,7 @@ class SchemaRegistryService(Service):
                 return self.get_node(idx)
 
     def url(self, idx=1):
-        return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
+        return "http://" + self.get_node(idx).account.externally_routable_ip + ":" + str(self.port)
 
 
 class RequestData(object):

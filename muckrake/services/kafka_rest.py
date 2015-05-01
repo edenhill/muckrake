@@ -89,5 +89,5 @@ class KafkaRestService(Service):
         node.account.ssh("rm -rf /mnt/rest.properties %(path)s" % self.logs["rest_log"], allow_fail=True)
 
     def url(self, idx=1):
-        return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
+        return "http://" + self.get_node(idx).account.externally_routable_ip + ":" + str(self.port)
 
