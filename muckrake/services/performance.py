@@ -280,7 +280,7 @@ class CamusPerformanceService(PerformanceService):
 
         self.hadoop.distribute_hdfs_confs(node)
         self.hadoop.distribute_mr_confs(node)
-        self.create_camus_props(node)
+        node.account.create_file(self.args['camus_property'], self.render('camus.properties', **self.args))
 
         cmd_template = "PATH=%(hadoop_path)s/%(hadoop_bin_dir_name)s:$PATH HADOOP_CONF_DIR=/mnt /opt/camus/bin/camus-run " \
                        "-D schema.registry.url=%(schema_registry_url)s -P %(camus_property)s " \
@@ -379,14 +379,6 @@ class CamusPerformanceService(PerformanceService):
         self.logger.info("Response %s", response.status_code)
         self.logger.debug("Response data %s", response.text)
 
-    def create_camus_props(self, node):
-        camus_props_template = open('templates/camus.properties').read()
-        camus_props_params = {
-            'kafka_brokers': self.args['broker_list'],
-            'kafka_whitelist_topics': self.args['topic']
-        }
-        camus_props = camus_props_template % camus_props_params
-        node.account.create_file(self.args['camus_property'], camus_props)
 
 
 class EndToEndLatencyService(PerformanceService):

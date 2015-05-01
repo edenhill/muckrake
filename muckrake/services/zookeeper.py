@@ -31,28 +31,13 @@ class ZookeeperService(Service):
         """
         super(ZookeeperService, self).__init__(context, num_nodes)
 
-    def make_config(self):
-        config = """
-dataDir=/mnt/zookeeper
-clientPort=2181
-maxClientCnxns=0
-initLimit=5
-syncLimit=2
-quorumListenOnAllIPs=true
-"""
-        for idx, node in enumerate(self.nodes, 1):
-            template_params = { 'idx': idx, 'host': node.account.hostname }
-            config += "server.%(idx)d=%(host)s:2888:3888\n" % template_params
-
-        return config
-
     def start_node(self, node):
         idx = self.idx(node)
         self.logger.info("Starting ZK node %d on %s", idx, node.account.hostname)
 
         node.account.ssh("mkdir -p /mnt/zookeeper")
         node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
-        node.account.create_file("/mnt/zookeeper.properties", self.make_config())
+        node.account.create_file("/mnt/zookeeper.properties", self.render('zookeeper.properties'))
 
         node.account.ssh(
             "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"

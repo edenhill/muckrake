@@ -6,10 +6,10 @@
 <configuration>
   <property>
     <name>mapred.job.tracker</name>
-    <value>%(mapred_job_tracker)s</value>
+    <value>{{ master_host }}:54311</value>
   </property>
   <property>
     <name>mapreduce.jobhistory.address</name>
-    <value>%(mapreduce_jobhistory_address)s</value>
+    <value>{{ master_host }}:10020</value>
   </property>
 </configuration>

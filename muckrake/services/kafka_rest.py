@@ -53,26 +53,11 @@ class KafkaRestService(Service):
         self.port = 8082
 
     def start_node(self, node):
-        template = open('templates/rest.properties').read()
-        zk_connect = self.zk.connect_setting()
-        bootstrapServers = self.kafka.bootstrap_servers()
         idx = self.idx(node)
 
         self.logger.info("Starting REST node %d on %s", idx, node.account.hostname)
-        template_params = {
-            'id': idx,
-            'port': self.port,
-            'zk_connect': zk_connect,
-            'bootstrap_servers': bootstrapServers,
-            'schema_registry_url': None
-        }
 
-        if self.schema_registry is not None:
-            template_params.update({'schema_registry_url': self.schema_registry.url()})
-
-        self.logger.info("Schema registry url for Kafka rest proxy is %s", template_params['schema_registry_url'])
-        config = template % template_params
-        node.account.create_file("/mnt/rest.properties", config)
+        node.account.create_file("/mnt/rest.properties", self.render('rest.properties', id=idx))
         node.account.ssh(
             "/opt/kafka-rest/bin/kafka-rest-start /mnt/rest.properties 1>> %(path)s 2>> %(path)s &" %
             self.logs["rest_log"])
