@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from test import SchemaRegistryFailoverTest
-from muckrake.services.schema_registry_utils import SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES
 import time
 
 # Specify retry frequency and retry window
@@ -27,11 +26,9 @@ class MasterCleanFailover(SchemaRegistryFailoverTest):
     Begin registering schemas; part way through, cleanly kill the master.
     """
     def __init__(self, test_context):
-        super(MasterCleanFailover, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
         # Expect leader reelection to take less than .2 sec in a clean shutdown
-        self.retry_wait_sec = .02
-        self.num_retries = 100
+        super(MasterCleanFailover, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.02, num_retries=100)
 
     def drive_failures(self):
         """
@@ -47,11 +44,9 @@ class MasterHardFailover(SchemaRegistryFailoverTest):
     Begin registering schemas; part way through, hard kill the master (kill -9)
     """
     def __init__(self, test_context):
-        super(MasterHardFailover, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
         # Default zookeeper session timeout is 10 seconds
-        self.retry_wait_sec = .1
-        self.num_retries = 1500
+        super(MasterHardFailover, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.1, num_retries=1500)
 
     def drive_failures(self):
         """
@@ -64,11 +59,9 @@ class MasterHardFailover(SchemaRegistryFailoverTest):
 
 class CleanBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
-        super(CleanBounce, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
         # Expect leader reelection to take less than .2 sec in a clean shutdown
-        self.retry_wait_sec = .02
-        self.num_retries = 100
+        super(CleanBounce, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.02, num_retries=100)
 
     def drive_failures(self):
         """
@@ -79,18 +72,10 @@ class CleanBounce(SchemaRegistryFailoverTest):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5)
 
-            # Don't restart the new master until the previous master is running again
-            prev_master_node.account.wait_for_http_service(
-                self.schema_registry.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
-
-
 class HardBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):
-        super(HardBounce, self).__init__(test_context, num_zk=1, num_brokers=1, num_schema_registry=3)
-
-        # Expect leader reelection to take less than .2 sec in a clean shutdown
-        self.retry_wait_sec = .3
-        self.num_retries = 100
+        super(HardBounce, self).__init__(
+            test_context, num_zk=1, num_brokers=1, num_schema_registry=3, retry_wait_sec=.3, num_retries=100)
 
     def drive_failures(self):
         """
@@ -100,8 +85,4 @@ class HardBounce(SchemaRegistryFailoverTest):
         for i in range(6):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5, clean_shutdown=False)
-
-            # Don't restart the new master until the previous master is running again
-            prev_master_node.account.wait_for_http_service(
-                self.schema_registry.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
 

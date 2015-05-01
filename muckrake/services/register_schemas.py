@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.services.service import Service
-from .schema_registry_utils import *
-import time, threading
+from muckrake.services.background_thread import BackgroundThreadService
+from muckrake.services.schema_registry import update_config, Compatibility, make_schema_string, register_schema
+
+import time
 
 
-class RegisterSchemasService(Service):
+class RegisterSchemasService(BackgroundThreadService):
 
     """ This class is meant to register a bunch of schemas in one or more background threads.
     To date, it is used in several different failover tests to concurrently send registration requests to a
@@ -47,8 +48,8 @@ class RegisterSchemasService(Service):
         worker_threads                  Background registration threads
     """
 
-    def __init__(self, service_context, schema_registry, retry_wait_sec, num_tries, max_time_seconds=60, max_schemas=float("inf")):
-        super(RegisterSchemasService, self).__init__(service_context)
+    def __init__(self, context, num_nodes, schema_registry, retry_wait_sec, num_tries, max_time_seconds=60, max_schemas=float("inf")):
+        super(RegisterSchemasService, self).__init__(context, num_nodes)
 
         self.subject = "test_subject"
         self.schema_registry = schema_registry
@@ -71,34 +72,6 @@ class RegisterSchemasService(Service):
 
         self.worker_threads = []
 
-    def start(self):
-        super(RegisterSchemasService, self).start()
-
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.info("Running %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
-            worker = threading.Thread(
-                name=self.__class__.__name__ + "-worker-" + str(idx),
-                target=self._worker,
-                args=(idx, node)
-            )
-            worker.daemon = True
-            worker.start()
-            self.worker_threads.append(worker)
-
-    def wait(self):
-        super(RegisterSchemasService, self).wait()
-        for idx, worker in enumerate(self.worker_threads, 1):
-            self.logger.debug("Waiting for %s worker %d to finish", self.__class__.__name__, idx)
-            worker.join()
-        self.worker_threads = None
-
-    def stop(self):
-        super(RegisterSchemasService, self).stop()
-        assert self.worker_threads is None, "%s.stop should only be called after wait" % self.__class__.__name__
-        for idx, node in enumerate(self.nodes, 1):
-            self.logger.debug("Stopping %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
-            node.free()
-
     def _worker(self, idx, node):
         # Set global schema compatibility requirement to NONE
         self.logger.debug("Changing compatibility requirement on %s" % self.schema_registry.url(1))
@@ -110,6 +83,8 @@ class RegisterSchemasService(Service):
         while True:
             elapsed = time.time() - start
             self.ready_to_finish = self.ready_to_finish or elapsed > self.max_time_seconds or i >= self.max_schemas
+
+            # Break out of loop and finish when ready
             if self.ready_to_finish:
                 break
 
@@ -126,7 +101,7 @@ class RegisterSchemasService(Service):
         that we might want a setup where requests come in concurrently from different nodes.
         """
 
-        self.logger.debug("Attempting to register schema number %d." % num)
+        self.logger.debug("Attempting to register schema number %d with %d retries and %f backoff." % (num, self.num_tries, self.retry_wait_sec))
 
         schema_string = make_schema_string(num)
         start = time.time()
@@ -134,6 +109,7 @@ class RegisterSchemasService(Service):
         stop = -1
         schema_id = -1
         success = False
+
         for i in range(self.num_tries):
             n_tries += 1
 
@@ -152,6 +128,7 @@ class RegisterSchemasService(Service):
             except Exception as e:
                 # TODO - use more specific exception
                 # Ignore and try again
+                self.logger.debug("Failed to register schema %d: %s" % (num, str(e)))
                 pass
 
             # sleep a little and try again
@@ -179,6 +156,7 @@ class RegisterSchemasService(Service):
             self.try_histogram[n_tries] += 1
         else:
             self.try_histogram[n_tries] = 1
+
 
 
 
