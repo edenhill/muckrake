@@ -16,6 +16,7 @@ from ducktape.services.service import Service
 
 import time
 import abc
+import os.path
 
 
 def create_hadoop_service(context, num_nodes, hadoop_distro, hadoop_version):
@@ -95,28 +96,16 @@ class HDFSService(Service):
         node.account.ssh("mkdir -p /mnt/name")
         node.account.ssh("mkdir -p /mnt/logs")
 
+    def template(self, filename):
+        return os.path.join(self.hadoop_distro, filename)
+
     def distribute_hdfs_confs(self, node):
         self.logger.info("Distributing hdfs confs to %s", node.account.hostname)
 
-        template_path = 'templates/' + self.hadoop_distro + '/'
-
-        hadoop_env_template = open(template_path + 'hadoop-env.sh').read()
-        hadoop_env_params = {'java_home': '/usr/lib/jvm/java-6-oracle'}
-        hadoop_env = hadoop_env_template % hadoop_env_params
-
-        core_site_template = open(template_path + 'core-site.xml').read()
-        core_site_params = {
-            'fs_default_name': "hdfs://" + self.master_host + ":9000"
-        }
-        core_site = core_site_template % core_site_params
-
-        hdfs_site_template = open(template_path + 'hdfs-site.xml').read()
-        hdfs_site_params = {
-            'dfs_replication': 1,
-            'dfs_name_dir': '/mnt/name',
-            'dfs_data_dir': '/mnt/data'
-        }
-        hdfs_site = hdfs_site_template % hdfs_site_params
+        hadoop_env = self.render(self.template('hadoop-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
+        core_site = self.render(self.template('core-site.xml'))
+        hdfs_site = self.render(self.template('hdfs-site.xml'),
+                                dfs_replication=1, dfs_name_dir='/mnt/name', dfs_data_dir='/mnt/data')
 
         node.account.create_file("/mnt/hadoop-env.sh", hadoop_env)
         node.account.create_file("/mnt/core-site.xml", core_site)
@@ -189,19 +178,7 @@ class CDHV1Service(HDFSService):
 
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing MR1 confs to %s", node.account.hostname)
-
-        template_path = 'templates/' + self.hadoop_distro + '/'
-
-        mapred_site_template = open(template_path + 'mapred-site.xml').read()
-
-        mapred_site_params = {
-            'mapred_job_tracker': self.master_host + ":54311",
-            'mapreduce_jobhistory_address': self.master_host + ":10020"
-        }
-
-        mapred_site = mapred_site_template % mapred_site_params
-        node.account.create_file("/mnt/mapred-site.xml", mapred_site)
-
+        node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred-site.xml')))
         node.account.ssh("cp " + self.hadoop_home + "etc/hadoop-mapreduce1/hadoop-metrics.properties /mnt")
 
     def start_jobtracker(self, node):
@@ -280,29 +257,11 @@ class CDHV2Service(HDFSService):
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
-        template_path = 'templates/' + self.hadoop_distro + '/'
+        yarn_env = self.render(self.template('yarn-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
 
-        mapred_site_template = open(template_path + 'mapred2-site.xml').read()
-        mapred_site_params = {
-            'mapreduce_jobhistory_address': self.master_host + ":10020"
-        }
-        mapred_site = mapred_site_template % mapred_site_params
-
-        yarn_env_template = open(template_path + 'yarn-env.sh').read()
-        yarn_env_params = {
-            'java_home': '/usr/lib/jvm/java-6-oracle'
-        }
-        yarn_env = yarn_env_template % yarn_env_params
-
-        yarn_site_template = open(template_path + 'yarn-site.xml').read()
-        yarn_site_params = {
-            'yarn_resourcemanager_hostname': self.master_host
-        }
-        yarn_site = yarn_site_template % yarn_site_params
-
-        node.account.create_file("/mnt/mapred-site.xml", mapred_site)
+        node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred2-site.xml')))
         node.account.create_file("/mnt/yarn-env.sh", yarn_env)
-        node.account.create_file("/mnt/yarn-site.xml", yarn_site)
+        node.account.create_file("/mnt/yarn-site.xml", self.render(self.template('yarn-site.xml')))
         node.account.ssh("cp " + self.hadoop_home + "/etc/hadoop/hadoop-metrics.properties /mnt")
 
     def start_resourcemanager(self, node):
@@ -405,28 +364,10 @@ class HDPService(HDFSService):
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
-        template_path = 'templates/' + self.hadoop_distro + '/'
+        yarn_env = self.render(self.template('yarn-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
 
-        yarn_env_template = open(template_path + 'yarn-env.sh').read()
-        yarn_env_params = {
-            'java_home': '/usr/lib/jvm/java-6-oracle'
-        }
-        yarn_env = yarn_env_template % yarn_env_params
-
-        mapred_site_template = open(template_path + 'mapred-site.xml').read()
-        mapred_site_params = {
-            'jobhistory_host': self.master_host
-        }
-        mapred_site = mapred_site_template % mapred_site_params
-
-        yarn_site_template = open(template_path + 'yarn-site.xml').read()
-        yarn_site_params = {
-            'yarn_resourcemanager_hostname': self.master_host
-        }
-        yarn_site = yarn_site_template % yarn_site_params
-
-        node.account.create_file("/mnt/mapred-site.xml", mapred_site)
-        node.account.create_file("/mnt/yarn-site.xml", yarn_site)
+        node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred-site.xml')))
+        node.account.create_file("/mnt/yarn-site.xml", self.render(self.template('yarn-site.xml')))
         node.account.create_file("/mnt/yarn-env.sh", yarn_env)
         node.account.ssh("cp /etc/hadoop/conf/hadoop-metrics.properties /mnt")
         node.account.ssh("cp /etc/hadoop/conf/capacity-scheduler.xml /mnt")
@@ -461,16 +402,4 @@ class HDPService(HDFSService):
                          " --config /mnt stop historyserver", allow_fail=allow_fail)
         time.sleep(5)  # the stop script doesn't wait
         node.account.ssh("rm -rf /mnt/yarn-site.xml /mnt/mapred-site.xml /mnt/yarn-env.sh")
-
-
-
-
-
-
-
-
-
-
-
-
 

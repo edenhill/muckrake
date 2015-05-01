@@ -49,18 +49,8 @@ class KafkaService(Service):
                 topic_cfg["topic"] = topic
                 self.create_topic(topic_cfg)
 
-    def start_node(self, node, config=None):
-        if config is None:
-            template = open('templates/kafka.properties').read()
-            template_params = {
-                'broker_id': self.idx(node),
-                'hostname': node.account.hostname,
-                'zk_connect': self.zk.connect_setting()
-            }
-
-            config = template % template_params
-
-        node.account.create_file("/mnt/kafka.properties", config)
+    def start_node(self, node):
+        node.account.create_file("/mnt/kafka.properties", self.render('kafka.properties', node=node, broker_id=self.idx(node)))
         cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)

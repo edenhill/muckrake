@@ -64,24 +64,7 @@ class SchemaRegistryService(Service):
 
     def start_node(self, node):
         self.logger.info("Starting Schema Registry node %d on %s", self.idx(node), node.account.hostname)
-        template = open('templates/schema-registry.properties').read()
-        template_params = {
-            'kafkastore_topic': '_schemas',
-            'kafkastore_url': self.zk.connect_setting(),
-            'rest_port': self.port
-        }
-
-        config = template % template_params
-        if config is None:
-            template = open('templates/schema-registry.properties').read()
-            template_params = {
-                'kafkastore_topic': '_schemas',
-                'kafkastore_url': self.zk.connect_setting(),
-                'rest_port': self.port
-            }
-            config = template % template_params
-
-        node.account.create_file("/mnt/schema-registry.properties", config)
+        node.account.create_file("/mnt/schema-registry.properties", self.render('schema-registry.properties'))
         cmd = "/opt/schema-registry/bin/schema-registry-start /mnt/schema-registry.properties " \
             + "1>> /mnt/schema-registry.log 2>> /mnt/schema-registry.log &"
 
