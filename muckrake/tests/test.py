@@ -329,6 +329,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         # do the kill or bounce logic
         self.logger.info("Driving failures")
         self.drive_failures()
+        self.logger.info("Finished driving failures.")
 
         # Wait a little before stopping registration
         num_attempted = self.register_driver.num_attempted_registrations

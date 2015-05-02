@@ -119,7 +119,7 @@ class RegisterSchemasService(BackgroundThreadService):
             target_url = self.schema_registry.url(self.request_target_idx)
 
             try:
-                self.logger.debug("Trying to register schema " + str(num))
+                self.logger.debug("Trying to register schema " + str(num) + " to url " + target_url)
                 schema_id = register_schema(target_url, schema_string, self.subject)
                 stop = time.time()
                 success = True

@@ -93,27 +93,26 @@ class SchemaRegistryService(Service):
         cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s get /schema_registry/schema_registry_master" \
               % self.zk.connect_setting()
 
-        host = None
+        hostname = None
         port_str = None
-        self.logger.debug("Querying zookeeper to find current schema registry master: \n%s" % cmd)
+        self.logger.info("Querying zookeeper to find current schema registry master: \n%s" % cmd)
         for line in node.account.ssh_capture(cmd):
             match = re.match("^{\"host\":\"(.*)\",\"port\":(\d+),", line)
             if match is not None:
                 groups = match.groups()
-                host = groups[0]
+                hostname = groups[0]
                 port_str = groups[1]
                 break
 
-        if host is None:
+        if hostname is None:
             raise Exception("Could not find schema registry master.")
 
-        base_url = "%s:%s" % (host, port_str)
-        self.logger.debug("schema registry master is %s" % base_url)
+        self.logger.debug("schema registry master is %s:%s" % (hostname, port_str))
 
         # Return the node with this base_url
         for idx, node in enumerate(self.nodes, 1):
-            if self.url(idx).find(base_url) >= 0:
-                return self.get_node(idx)
+            if node.account.hostname == hostname:
+                return node
 
     def url(self, idx=1):
         return "http://" + self.get_node(idx).account.externally_routable_ip + ":" + str(self.port)
