@@ -83,6 +83,7 @@ class SchemaRegistryService(Service):
         node.account.ssh("rm -rf /mnt/schema-registry.properties /mnt/schema-registry.log")
 
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):
+        self.logger.info("Bouncing %s node %d on %s" % (type(self).__name__, self.idx(node), node.account.hostname))
         self.stop_node(node, clean_shutdown, allow_fail=True)
         time.sleep(wait_sec)
         self.start_node(node)

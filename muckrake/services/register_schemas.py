@@ -74,9 +74,10 @@ class RegisterSchemasService(BackgroundThreadService):
 
     def _worker(self, idx, node):
         # Set global schema compatibility requirement to NONE
-        self.logger.debug("Changing compatibility requirement on %s" % self.schema_registry.url(1))
+        self.logger.info("Changing compatibility requirement on %s" % self.schema_registry.url(1))
         self.logger.debug(self.schema_registry.url(1))
-        update_config(self.schema_registry.url(1), Compatibility.NONE)
+        update_config(self.schema_registry.url(1, external=True), Compatibility.NONE)
+        self.logger.info("Successfully changed compatibility requirement on %s" % self.schema_registry.url(1))
 
         start = time.time()
         i = 0
@@ -91,6 +92,14 @@ class RegisterSchemasService(BackgroundThreadService):
             self.try_register(i, idx, node)
             self.num_attempted_registrations += 1
             i += 1
+
+    def stop(self):
+        # Trigger background threads to finish if stop is called early (e.g. during cleanup
+        # after an exception was thrown
+        self.ready_to_finish = True
+        if self.worker_threads is not None:
+            self.wait()
+        super(RegisterSchemasService, self).stop()
 
     def try_register(self, num, idx, node):
         """

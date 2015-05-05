@@ -192,7 +192,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         attempted_schemas = [r["schema_string"] for r in self.register_driver.registration_data]
         stored_records = set()
         master_id = self.schema_registry.idx(self.schema_registry.get_master_node())
-        base_url = self.schema_registry.url(master_id)
+        base_url = self.schema_registry.url(master_id, external=True)
 
         for id, schema in reported_records:
             stored_id = get_by_schema(base_url, schema, self.register_driver.subject)["id"]
