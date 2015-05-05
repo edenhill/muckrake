@@ -136,7 +136,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
 
         # Verify that all ids reported as successfully registered can be fetched
         master_id = self.schema_registry.idx(self.schema_registry.get_master_node())
-        base_url = self.schema_registry.url(master_id)
+        base_url = self.schema_registry.url(master_id, external=True)
         registered_ids = [record["schema_id"] for record in self.register_driver.registration_data if record["success"]]
         registered_schemas = [record["schema_string"]
                               for record in self.register_driver.registration_data if record["success"]]
@@ -192,7 +192,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         attempted_schemas = [r["schema_string"] for r in self.register_driver.registration_data]
         stored_records = set()
         master_id = self.schema_registry.idx(self.schema_registry.get_master_node())
-        base_url = self.schema_registry.url(master_id)
+        base_url = self.schema_registry.url(master_id, external=True)
 
         for id, schema in reported_records:
             stored_id = get_by_schema(base_url, schema, self.register_driver.subject)["id"]
@@ -204,7 +204,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         Return all pairs (id, schema) that can be fetched by subject/version, for all versions listed under the subject.
         """
         master_id = self.schema_registry.idx(self.schema_registry.get_master_node())
-        base_url = self.schema_registry.url(master_id)
+        base_url = self.schema_registry.url(master_id, external=True)
         versions = get_all_versions(base_url, self.register_driver.subject)
 
         fetched_ids_and_schemas = []
@@ -290,7 +290,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         back that same particular schema.
         """
         master_id = self.schema_registry.idx(self.schema_registry.get_master_node())
-        base_url = self.schema_registry.url(master_id)
+        base_url = self.schema_registry.url(master_id, external=True)
 
         registration_data = self.register_driver.registration_data
         message = "Validating that registered schemas match fetched schemas...\n"
@@ -329,6 +329,7 @@ class SchemaRegistryFailoverTest(SchemaRegistryTest):
         # do the kill or bounce logic
         self.logger.info("Driving failures")
         self.drive_failures()
+        self.logger.info("Finished driving failures.")
 
         # Wait a little before stopping registration
         num_attempted = self.register_driver.num_attempted_registrations

@@ -27,10 +27,9 @@ In order to run the muckrake system tests using ducktape, a few preparatory step
     ./build.sh # check out and build Confluent projects against specified version
 ```
    
-* Configure Vagrant by creating the file `Vagrantfile.local`. At minimum this needs `enabled_dns = true` and `num_workers = <enough workers to run your tests>`.
+* Configure Vagrant by creating the file `Vagrantfile.local`. `num_workers = <enough workers to run your tests>`.
 ```
     # example Vagrantfile.local
-    enable_dns = true
     num_workers = 7  # This should be set high enough
 ```
 

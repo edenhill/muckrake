@@ -6,12 +6,14 @@ Vagrantfile.local
 *.pyc
 *.ipynb
 
+# build artifacts
 kafka/
 common/
 rest-utils/
 kafka-rest/
 schema-registry/
 camus/
+gradle*
 
 .DS_Store
 

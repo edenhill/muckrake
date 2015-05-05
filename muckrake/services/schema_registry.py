@@ -72,7 +72,8 @@ class SchemaRegistryService(Service):
         node.account.ssh(cmd)
 
         # Wait for the server to become live
-        node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
+        # Default bootstrap timeout on schema registry is 60 seconds, so generously allow 70 second timeout here
+        node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES, timeout=70)
 
     def stop_node(self, node, clean_shutdown=True, allow_fail=True):
         self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, self.idx(node), node.account.hostname))
@@ -83,6 +84,7 @@ class SchemaRegistryService(Service):
         node.account.ssh("rm -rf /mnt/schema-registry.properties /mnt/schema-registry.log")
 
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):
+        self.logger.info("Bouncing %s node %d on %s" % (type(self).__name__, self.idx(node), node.account.hostname))
         self.stop_node(node, clean_shutdown, allow_fail=True)
         time.sleep(wait_sec)
         self.start_node(node)
@@ -93,30 +95,42 @@ class SchemaRegistryService(Service):
         cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s get /schema_registry/schema_registry_master" \
               % self.zk.connect_setting()
 
-        host = None
+        hostname = None
         port_str = None
-        self.logger.debug("Querying zookeeper to find current schema registry master: \n%s" % cmd)
+        self.logger.info("Querying zookeeper to find current schema registry master: \n%s" % cmd)
         for line in node.account.ssh_capture(cmd):
             match = re.match("^{\"host\":\"(.*)\",\"port\":(\d+),", line)
             if match is not None:
                 groups = match.groups()
-                host = groups[0]
+                hostname = groups[0]
                 port_str = groups[1]
                 break
 
-        if host is None:
+        if hostname is None:
             raise Exception("Could not find schema registry master.")
 
-        base_url = "%s:%s" % (host, port_str)
-        self.logger.debug("schema registry master is %s" % base_url)
-
         # Return the node with this base_url
+        master_node = None
         for idx, node in enumerate(self.nodes, 1):
-            if self.url(idx).find(base_url) >= 0:
-                return self.get_node(idx)
+            if node.account.hostname == hostname:
+                master_node = node
 
-    def url(self, idx=1):
-        return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
+        if node is None:
+            msg = "Zookeeper reported %s as master, but could not locate a service node with this hostname." % hostname
+            self.logger.warn(msg)
+            raise Exception(msg)
+
+        self.logger.info("schema registry master is %s (%s)" % (hostname, master_node.account.externally_routable_ip))
+        return master_node
+
+    def url(self, idx=1, external=False):
+        """external is somewhat aws/Vagrant specific - the 'external' url should only be used by processes
+        running on the test driver machine. Any process running on a slave machine should query for
+        the default 'internal' url."""
+        if external:
+            return "http://" + self.get_node(idx).account.externally_routable_ip + ":" + str(self.port)
+        else:
+            return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
 
 
 class RequestData(object):

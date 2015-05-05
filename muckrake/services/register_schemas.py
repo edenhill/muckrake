@@ -74,9 +74,10 @@ class RegisterSchemasService(BackgroundThreadService):
 
     def _worker(self, idx, node):
         # Set global schema compatibility requirement to NONE
-        self.logger.debug("Changing compatibility requirement on %s" % self.schema_registry.url(1))
+        self.logger.info("Changing compatibility requirement on %s" % self.schema_registry.url(1))
         self.logger.debug(self.schema_registry.url(1))
-        update_config(self.schema_registry.url(1), Compatibility.NONE)
+        update_config(self.schema_registry.url(1, external=True), Compatibility.NONE)
+        self.logger.info("Successfully changed compatibility requirement on %s" % self.schema_registry.url(1))
 
         start = time.time()
         i = 0
@@ -91,6 +92,14 @@ class RegisterSchemasService(BackgroundThreadService):
             self.try_register(i, idx, node)
             self.num_attempted_registrations += 1
             i += 1
+
+    def stop(self):
+        # Trigger background threads to finish if stop is called early (e.g. during cleanup
+        # after an exception was thrown
+        self.ready_to_finish = True
+        if self.worker_threads is not None:
+            self.wait()
+        super(RegisterSchemasService, self).stop()
 
     def try_register(self, num, idx, node):
         """
@@ -116,13 +125,14 @@ class RegisterSchemasService(BackgroundThreadService):
             # Rotate to next server in the schema registry
             self.request_target_idx %= self.schema_registry.num_nodes
             self.request_target_idx += 1
-            target_url = self.schema_registry.url(self.request_target_idx)
+            target_url = self.schema_registry.url(self.request_target_idx, external=True)
 
             try:
-                self.logger.debug("Trying to register schema " + str(num))
+                self.logger.debug("Trying to register schema " + str(num) + " to url " + target_url)
                 schema_id = register_schema(target_url, schema_string, self.subject)
                 stop = time.time()
                 success = True
+                self.logger.debug("Successfully registered schema " + str(num) + " to url " + target_url)
                 break
 
             except Exception as e:

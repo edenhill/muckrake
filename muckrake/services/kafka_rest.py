@@ -73,6 +73,12 @@ class KafkaRestService(Service):
         self.logger.info("Cleaning REST node %d on %s", self.idx(node), node.account.hostname)
         node.account.ssh("rm -rf /mnt/rest.properties %(path)s" % self.logs["rest_log"], allow_fail=True)
 
-    def url(self, idx=1):
-        return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
+    def url(self, idx=1, external=False):
+        """external is somewhat aws/Vagrant specific - the 'external' url should only be used by processes
+        running on the test driver machine. Any process running on a slave machine should query for
+        the default 'internal' url."""
+        if external:
+            return "http://" + self.get_node(idx).account.externally_routable_ip + ":" + str(self.port)
+        else:
+            return "http://" + self.get_node(idx).account.hostname + ":" + str(self.port)
 

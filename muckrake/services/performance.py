@@ -276,7 +276,7 @@ class CamusPerformanceService(PerformanceService):
         }
         args = self.args.copy()
 
-        self.produce_avro(args['rest_url'] + '/topics/' + args['topic'])
+        self.produce_avro(self.rest.url(idx=1, external=True) + '/topics/' + args['topic'])
 
         self.hadoop.distribute_hdfs_confs(node)
         self.hadoop.distribute_mr_confs(node)
