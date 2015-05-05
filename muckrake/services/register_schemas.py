@@ -132,6 +132,7 @@ class RegisterSchemasService(BackgroundThreadService):
                 schema_id = register_schema(target_url, schema_string, self.subject)
                 stop = time.time()
                 success = True
+                self.logger.debug("Successfully registered schema " + str(num) + " to url " + target_url)
                 break
 
             except Exception as e:

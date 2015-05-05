@@ -20,6 +20,7 @@ import time
 # should be very fast, expect about 10 retries w/.02 seconds between tries
 # should be sufficient
 
+
 # For a kill -9, master reelection won't take place until zookeeper timeout, or about 4 seconds
 class MasterCleanFailover(SchemaRegistryFailoverTest):
     """
@@ -71,6 +72,7 @@ class CleanBounce(SchemaRegistryFailoverTest):
         for i in range(5):
             prev_master_node = self.schema_registry.get_master_node()
             self.schema_registry.restart_node(prev_master_node, wait_sec=5)
+
 
 class HardBounce(SchemaRegistryFailoverTest):
     def __init__(self, test_context):

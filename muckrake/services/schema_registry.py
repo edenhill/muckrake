@@ -72,7 +72,8 @@ class SchemaRegistryService(Service):
         node.account.ssh(cmd)
 
         # Wait for the server to become live
-        node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES)
+        # Default bootstrap timeout on schema registry is 60 seconds, so generously allow 70 second timeout here
+        node.account.wait_for_http_service(self.port, headers=SCHEMA_REGISTRY_DEFAULT_REQUEST_PROPERTIES, timeout=70)
 
     def stop_node(self, node, clean_shutdown=True, allow_fail=True):
         self.logger.info("Stopping %s node %d on %s" % (type(self).__name__, self.idx(node), node.account.hostname))
@@ -108,12 +109,19 @@ class SchemaRegistryService(Service):
         if hostname is None:
             raise Exception("Could not find schema registry master.")
 
-        self.logger.debug("schema registry master is %s:%s" % (hostname, port_str))
-
         # Return the node with this base_url
+        master_node = None
         for idx, node in enumerate(self.nodes, 1):
             if node.account.hostname == hostname:
-                return node
+                master_node = node
+
+        if node is None:
+            msg = "Zookeeper reported %s as master, but could not locate a service node with this hostname." % hostname
+            self.logger.warn(msg)
+            raise Exception(msg)
+
+        self.logger.info("schema registry master is %s (%s)" % (hostname, master_node.account.externally_routable_ip))
+        return master_node
 
     def url(self, idx=1, external=False):
         """external is somewhat aws/Vagrant specific - the 'external' url should only be used by processes
