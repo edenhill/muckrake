@@ -116,7 +116,7 @@ class RegisterSchemasService(BackgroundThreadService):
             # Rotate to next server in the schema registry
             self.request_target_idx %= self.schema_registry.num_nodes
             self.request_target_idx += 1
-            target_url = self.schema_registry.url(self.request_target_idx)
+            target_url = self.schema_registry.url(self.request_target_idx, external=True)
 
             try:
                 self.logger.debug("Trying to register schema " + str(num) + " to url " + target_url)
