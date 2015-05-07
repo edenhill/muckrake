@@ -2,27 +2,32 @@ import subprocess
 import os
 import sys
 
-def build_update():
-    return run("./build.sh --update")
+def build_update(verbose=False):
+    print "Pulling in latest updates and building"
+    return run("./build.sh --update", verbose)
 
-def vagrant_up():
-    return run("vagrant up --provider=aws --no-provision --no-parallel")
+def vagrant_up(verbose=False):
+    print "Bringing up vagrant cluster"
+    return run("vagrant up --provider=aws --no-provision --no-parallel", verbose)
 
-def vagrant_provision():
-    return run("vagrant provision")
+def vagrant_provision(verbose=False):
+    print "Provisioning vagrant cluster"
+    return run("vagrant provision", verbose)
 
-def run_tests():
-    return run("ducktape muckrake/tests/mini_test.py")
+def run_tests(verbose=False):
+    return run("ducktape muckrake/tests/", verbose)
 
-def vagrant_destroy():
-    return run("vagrant destroy -f")
+def vagrant_destroy(verbose=False):
+    "Destroying vagrant cluster"
+    return run("vagrant destroy -f", verbose)
 
-def run(cmd):
+def run(cmd, verbose):
     print "Running %s" % cmd
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for line in iter(proc.stdout.readline, ''):
-        print line
-    
+        if verbose:
+            print line
+
     output, err = proc.communicate()
     print output
     return proc.returncode
@@ -39,11 +44,10 @@ def main():
     vagrant_up()
     vagrant_provision()
 
-    exit_status = run_tests()
+    exit_status = run_tests(True)
 
-    vagrant_destroy()
-    print exit_status
-    #sys.exit(exit_status)
+    #vagrant_destroy()
+    sys.exit(exit_status)
     print exit_status
 
 if __name__ == "__main__":

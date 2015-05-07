@@ -4,4 +4,4 @@ ec2_keypair_name = 'confluent'
 ec2_keypair_file = '../confluent.pem'
 ec2_security_groups = ['ducttape-insecure']
 ec2_region = 'us-west-2'
-ec2_ami = "ami-fdc2f6cd"
+ec2_ami = "ami-2b92a31b"

@@ -42,11 +42,12 @@ chmod a+rw /opt
 projects_dir=/vagrant/projects
 projects="kafka common rest-utils kafka-rest schema-registry camus"
 for project in $projects; do
-    if [ ! -h /opt/$project ]; then
-        # symlink if the symlink isn't yet there
-        echo "linking /opt/$project to $projects_dir/$project"
-        ln -s $projects_dir/$project /opt/$project
+    if [ -h /opt/$project ]; then
+        # reset the symlink
+        rm -f /opt/$project
     fi
+    echo "linking /opt/$project to $projects_dir/$project"
+    ln -s $projects_dir/$project /opt/$project
 done
 
 # For EC2 nodes, we want to use /mnt, which should have the local disk. On local
@@ -58,16 +59,18 @@ if [ ! -e /mnt ]; then
 fi
 chmod a+rwx /mnt
 
-
 # Install and configure CDH
-if [ ! -e /opt/hadoop-cdh ]; then
-    mkdir -p /vagrant/hadoop-cdh
-    pushd /opt/
+pushd /opt/
+if [ -h /opt/hadoop-cdh ]; then
+    # reset symlink
+    rm -f /opt/hadoop-cdh
+fi
+if [ ! -e /opt/hadoop-2.5.0-cdh5.3 ]; then
     wget http://archive.cloudera.com/cdh5/cdh/5/hadoop-2.5.0-cdh5.3.0.tar.gz
     tar xvzf hadoop-2.5.0-cdh5.3.0.tar.gz
-    ln -s /opt/hadoop-2.5.0-cdh5.3.0 /opt/hadoop-cdh
-    popd
 fi
+ln -s /opt/hadoop-2.5.0-cdh5.3.0 /opt/hadoop-cdh
+popd
 
 # Delete uncessary host binding so that datanode can connect to namenode
 sed -i '/127.0.1.1/d' /etc/hosts
