@@ -1,6 +1,10 @@
 #!/bin/bash -e
 
 base_dir=$(dirname $0)
+projects_dir=$base_dir/projects  # Clone all projects into this directory
+if [ ! -d $projects_dir ]; then
+    mkdir -p $projects_dir
+fi
 
 # Detect jdk version
 jdk=`javac -version 2>&1 | cut -d ' ' -f 2`
@@ -36,17 +40,17 @@ fi
 
 # Default gradle for local gradle download, e.g. on EC2
 if [ ! `which gradle` ]; then
-    export PATH=$base_dir/`find . | grep gradle-.*/bin$`:$PATH
+    export PATH=$projects_dir/`find . | grep gradle-.*/bin$`:$PATH
 fi
 
 KAFKA_VERSION=0.8.2.0
 
-if [ ! -d $base_dir/kafka ]; then
+if [ ! -d $projects_dir/kafka ]; then
     echo "Cloning Kafka"
-    git clone http://git-wip-us.apache.org/repos/asf/kafka.git $base_dir/kafka
+    git clone http://git-wip-us.apache.org/repos/asf/kafka.git $projects_dir/kafka
 fi
 
-pushd $base_dir/kafka
+pushd $projects_dir/kafka
 
 if [ "x$UPDATE" == "xyes" ]; then
     echo "Updating Kafka"
@@ -79,9 +83,9 @@ function build_maven_project() {
     BUILD_TARGET=$3
     BRANCH=${4:-master}
 
-    if [ ! -d $base_dir/$NAME ]; then
+    if [ ! -d $projects_dir/$NAME ]; then
         echo "Cloning $NAME"
-        git clone $URL $base_dir/$NAME
+        git clone $URL $projects_dir/$NAME
     fi
 
     # Turn off tests for the build because some of these are local integration
@@ -92,7 +96,7 @@ function build_maven_project() {
         BUILD_OPTS="$BUILD_OPTS -Dkafka.scala.version=$SCALA_VERSION"
     fi
 
-    pushd $base_dir/$NAME
+    pushd $projects_dir/$NAME
 
     if [ "x$UPDATE" == "xyes" ]; then
         echo "Updating $NAME"

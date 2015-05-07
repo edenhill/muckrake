@@ -39,14 +39,15 @@ fi
 
 chmod a+rw /opt
 
-if [ ! -e /opt/kafka ]; then
-    ln -s /vagrant/kafka /opt/kafka
-    ln -s /vagrant/common /opt/common
-    ln -s /vagrant/rest-utils /opt/rest-utils
-    ln -s /vagrant/kafka-rest /opt/kafka-rest
-    ln -s /vagrant/schema-registry /opt/schema-registry
-    ln -s /vagrant/camus /opt/camus
-fi
+projects_dir=/vagrant/projects
+projects="kafka common rest-utils kafka-rest schema-registry camus"
+for project in $projects; do
+    if [ ! -h /opt/$project ]; then
+        # symlink if the symlink isn't yet there
+        echo "linking /opt/$project to $projects_dir/$project"
+        ln -s $projects_dir/$project /opt/$project
+    fi
+done
 
 # For EC2 nodes, we want to use /mnt, which should have the local disk. On local
 # VMs, we can just create it if it doesn't exist and use it like we'd use
