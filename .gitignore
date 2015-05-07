@@ -7,13 +7,7 @@ Vagrantfile.local
 *.ipynb
 
 # build artifacts
-kafka/
-common/
-rest-utils/
-kafka-rest/
-schema-registry/
-camus/
-gradle*
+projects
 
 .DS_Store
 
