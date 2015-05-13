@@ -43,36 +43,83 @@ if [ ! `which gradle` ]; then
     export PATH=$projects_dir/`find . | grep gradle-.*/bin$`:$PATH
 fi
 
-KAFKA_VERSION=0.8.2.0
+function kafka_dirname() {
+    version=$1
 
-if [ ! -d $projects_dir/kafka ]; then
-    echo "Cloning Kafka"
-    git clone http://git-wip-us.apache.org/repos/asf/kafka.git $projects_dir/kafka
-fi
+    if [ "x$version" == "xtrunk" ]; then
+        kafka_dir=$projects_dir/kafka
+    else
+        kafka_dir=$projects_dir/kafka-$version
+    fi
 
-pushd $projects_dir/kafka
+    echo $kafka_dir
+}
 
-if [ "x$UPDATE" == "xyes" ]; then
-    echo "Updating Kafka"
-    git fetch origin
-fi
+function checkout_kafka() {
+    # After running this function, all specified branches will be available in the projects directory to be built
+    kafka_versions=$@
+    trunk_dir=`kafka_dirname trunk`
 
-git checkout tags/$KAFKA_VERSION
+    # Get kafka if we don't already have it
+    if [ ! -d $trunk_dir ]; then
+        echo "Cloning Kafka"
+        git clone http://git-wip-us.apache.org/repos/asf/kafka.git $trunk_dir
 
-# FIXME we should be installing the version of Kafka we built into the local
-# Maven repository and making sure we specify the right Kafka version when
-# building our own projects. Currently ours link to whatever version of Kafka
-# they default to, which should work ok for now.
-echo "Building Kafka"
-KAFKA_BUILD_OPTS=""
-if [ "x$SCALA_VERSION" != "x" ]; then
-    KAFKA_BUILD_OPTS="$KAFKA_BUILD_OPTS -PscalaVersion=$SCALA_VERSION"
-fi
-if [ ! -e gradle/wrapper/ ]; then
-    gradle
-fi
-./gradlew $KAFKA_BUILD_OPTS jar
-popd
+        pushd $trunk_dir
+        git reset HEAD --hard
+        popd
+    fi
+
+    # Update branches, tags if necessary
+    if [ "x$UPDATE" == "xyes" ]; then
+        pushd $trunk_dir
+        echo "Updating Kafka"
+        git fetch origin
+        popd
+    fi
+
+    # Make one copy of kafka directory per version (aka tag/branch)
+    for version in $kafka_versions; do
+        kafka_dir=`kafka_dirname $version`
+
+        if [ ! -d $kafka_dir ]; then
+            cp -r $trunk_dir $kafka_dir
+
+            pushd $kafka_dir
+            git checkout tags/$version
+            popd
+        fi
+    done
+}
+
+function build_kafka() {
+    # build the various version of kafka that we want available
+    # if UPDATE flag is set, we assume non-trunk versions are already built,
+    # and only build trunk
+
+    versions=$@
+
+    # FIXME we should be installing the version of Kafka we built into the local
+    # Maven repository and making sure we specify the right Kafka version when
+    # building our own projects. Currently ours link to whatever version of Kafka
+    # they default to, which should work ok for now.
+    for version in $versions; do
+        kafka_dir=`kafka_dirname $version`
+
+        pushd $kafka_dir
+        echo "Building Kafka $version"
+        KAFKA_BUILD_OPTS=""
+        if [ "x$SCALA_VERSION" != "x" ]; then
+            KAFKA_BUILD_OPTS="$KAFKA_BUILD_OPTS -PscalaVersion=$SCALA_VERSION"
+        fi
+        if [ ! -e gradle/wrapper/ ]; then
+            gradle
+        fi
+
+        ./gradlew $KAFKA_BUILD_OPTS jar
+        popd
+    done
+}
 
 function build_maven_project() {
     NAME=$1
@@ -114,8 +161,12 @@ function build_maven_project() {
     popd
 }
 
-build_maven_project "common" "${GIT_MODE}confluentinc/common.git" "install"
-build_maven_project "rest-utils" "${GIT_MODE}confluentinc/rest-utils.git" "install"
-build_maven_project "schema-registry" "${GIT_MODE}confluentinc/schema-registry.git" "install"
-build_maven_project "kafka-rest" "${GIT_MODE}confluentinc/kafka-rest.git" "package"
-build_maven_project "camus" "${GIT_MODE}confluentinc/camus.git" "package" "confluent-master"
+KAFKA_VERSIONS="trunk 0.8.1.1 0.8.2.0 0.8.2.1"
+checkout_kafka $KAFKA_VERSIONS
+build_kafka $KAFKA_VERSIONS
+
+#build_maven_project "common" "${GIT_MODE}confluentinc/common.git" "install"
+#build_maven_project "rest-utils" "${GIT_MODE}confluentinc/rest-utils.git" "install"
+#build_maven_project "schema-registry" "${GIT_MODE}confluentinc/schema-registry.git" "install"
+#build_maven_project "kafka-rest" "${GIT_MODE}confluentinc/kafka-rest.git" "package"
+#build_maven_project "camus" "${GIT_MODE}confluentinc/camus.git" "package" "confluent-master"
