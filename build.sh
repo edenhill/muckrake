@@ -165,8 +165,8 @@ KAFKA_VERSIONS="trunk 0.8.1.1 0.8.2.0 0.8.2.1"
 checkout_kafka $KAFKA_VERSIONS
 build_kafka $KAFKA_VERSIONS
 
-#build_maven_project "common" "${GIT_MODE}confluentinc/common.git" "install"
-#build_maven_project "rest-utils" "${GIT_MODE}confluentinc/rest-utils.git" "install"
-#build_maven_project "schema-registry" "${GIT_MODE}confluentinc/schema-registry.git" "install"
-#build_maven_project "kafka-rest" "${GIT_MODE}confluentinc/kafka-rest.git" "package"
-#build_maven_project "camus" "${GIT_MODE}confluentinc/camus.git" "package" "confluent-master"
+build_maven_project "common" "${GIT_MODE}confluentinc/common.git" "install"
+build_maven_project "rest-utils" "${GIT_MODE}confluentinc/rest-utils.git" "install"
+build_maven_project "schema-registry" "${GIT_MODE}confluentinc/schema-registry.git" "install"
+build_maven_project "kafka-rest" "${GIT_MODE}confluentinc/kafka-rest.git" "package"
+build_maven_project "camus" "${GIT_MODE}confluentinc/camus.git" "package" "confluent-master"
