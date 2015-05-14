@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from .test import SchemaRegistryTest
-from muckrake.services.performance import SchemaRegistryPerformanceService
+from muckrake.services.performance.schema_registry import SchemaRegistryPerformanceService
 
 
 class SchemaRegistryBenchmark(SchemaRegistryTest):

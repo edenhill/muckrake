@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .test import CamusTest
-from muckrake.services.performance import CamusPerformanceService
+from muckrake.services.performance.camus import CamusPerformanceService
 
 
 class CamusHadoopV1Test(CamusTest):

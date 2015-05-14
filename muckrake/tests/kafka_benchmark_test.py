@@ -14,7 +14,8 @@
 
 from .test import KafkaTest
 from ducktape.services.service import Service
-from muckrake.services.performance import ProducerPerformanceService, ConsumerPerformanceService, EndToEndLatencyService
+from muckrake.services.performance.kafka import ProducerPerformanceService, \
+    ConsumerPerformanceService, EndToEndLatencyService
 
 
 class KafkaBenchmark(KafkaTest):

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 from .test import RestProxyTest
-from muckrake.services.performance import ProducerPerformanceService, RestProducerPerformanceService,\
-    ConsumerPerformanceService, RestConsumerPerformanceService
+from muckrake.services.performance.kafka import ProducerPerformanceService, ConsumerPerformanceService
+from muckrake.services.performance.kafka_rest import RestProducerPerformanceService, RestConsumerPerformanceService
 
 
 class NativeVsRestProducerPerformance(RestProxyTest):
