@@ -64,7 +64,7 @@ class ProducerPerformanceService(PerformanceService):
     def _worker(self, idx, node):
         args = self.args.copy()
         args.update({'bootstrap_servers': self.kafka.bootstrap_servers()})
-        cmd = "/opt/kafka/bin/kafka-run-class.sh org.apache.kafka.clients.tools.ProducerPerformance "\
+        cmd = "/opt/kafka-0.8.2.1/bin/kafka-run-class.sh org.apache.kafka.clients.tools.ProducerPerformance "\
               "%(topic)s %(num_records)d %(record_size)d %(throughput)d bootstrap.servers=%(bootstrap_servers)s" % args
 
         for key,value in self.settings.items():
@@ -115,7 +115,7 @@ class ConsumerPerformanceService(PerformanceService):
     def _worker(self, idx, node):
         args = self.args.copy()
         args.update({'zk_connect': self.kafka.zk.connect_setting()})
-        cmd = "/opt/kafka/bin/kafka-consumer-perf-test.sh "\
+        cmd = "/opt/kafka-0.8.2.1/bin/kafka-consumer-perf-test.sh "\
               "--topic %(topic)s --messages %(num_records)d --zookeeper %(zk_connect)s" % args
         for key,value in self.settings.items():
             cmd += " %s=%s" % (str(key), str(value))

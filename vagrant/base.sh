@@ -40,12 +40,13 @@ fi
 chmod a+rw /opt
 
 projects_dir=/vagrant/projects
-projects="kafka common rest-utils kafka-rest schema-registry camus"
+projects="kafka-trunk kafka-0.8.1.1 kafka-0.8.2.0 kafka-0.8.2.1 common rest-utils kafka-rest schema-registry camus"
 for project in $projects; do
     if [ -h /opt/$project ]; then
         # reset the symlink
         rm -f /opt/$project
     fi
+    
     echo "linking /opt/$project to $projects_dir/$project"
     ln -s $projects_dir/$project /opt/$project
 done

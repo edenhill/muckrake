@@ -92,7 +92,7 @@ class SchemaRegistryService(Service):
     def get_master_node(self):
         node = self.nodes[0]
 
-        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s get /schema_registry/schema_registry_master" \
+        cmd = "/opt/kafka-0.8.2.1/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s get /schema_registry/schema_registry_master" \
               % self.zk.connect_setting()
 
         hostname = None

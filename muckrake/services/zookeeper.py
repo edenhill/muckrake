@@ -40,7 +40,7 @@ class ZookeeperService(Service):
         node.account.create_file("/mnt/zookeeper.properties", self.render('zookeeper.properties'))
 
         node.account.ssh(
-            "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"
+            "/opt/kafka-0.8.2.1/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"
             % self.logs["zk_log"])
 
         time.sleep(5)  # give it some time to start

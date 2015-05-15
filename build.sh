@@ -45,14 +45,7 @@ fi
 
 function kafka_dirname() {
     version=$1
-
-    if [ "x$version" == "xtrunk" ]; then
-        kafka_dir=$projects_dir/kafka
-    else
-        kafka_dir=$projects_dir/kafka-$version
-    fi
-
-    echo $kafka_dir
+    echo $projects_dir/kafka-$version
 }
 
 function checkout_kafka() {
@@ -66,6 +59,7 @@ function checkout_kafka() {
         git clone http://git-wip-us.apache.org/repos/asf/kafka.git $trunk_dir
 
         pushd $trunk_dir
+        # Remove artifacts left by gradle
         git reset HEAD --hard
         popd
     fi
@@ -74,7 +68,7 @@ function checkout_kafka() {
     if [ "x$UPDATE" == "xyes" ]; then
         pushd $trunk_dir
         echo "Updating Kafka"
-        git fetch origin
+        git pull
         popd
     fi
 

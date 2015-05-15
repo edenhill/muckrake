@@ -66,6 +66,7 @@ def throughput(perf):
     aggregate_mbps = sum([r['mbps'] for r in perf.results])
     return "%f rec/sec (%f MB/s)" % (aggregate_rate, aggregate_mbps)
 
+
 # PRODUCER TESTS
 class SingleProducerNoReplication(KafkaBenchmark):
     def __init__(self, test_context):
@@ -242,10 +243,24 @@ class SingleConsumer(KafkaBenchmark):
         # All consumer tests use the messages from the first benchmark, so
         # they'll get messages of the default message size
         self.logger.info("BENCHMARK: Single consumer")
+
+        self.producer_perf = ProducerPerformanceService(
+            test_context, 1, self.kafka,
+            topic="test-rep-three", num_records=self.msgs_default, record_size=self.msg_size_default, throughput=-1,
+            settings={'acks':1, 'batch.size':self.batch_size, 'buffer.memory':self.buffer_memory}
+        )
+
         self.perf = ConsumerPerformanceService(
             test_context, 1, self.kafka,
             topic="test-rep-three", num_records=self.msgs_default, throughput=-1, threads=1
         )
+
+    def run(self):
+        # pump messages into kafka before consuming
+        self.producer_perf.run()
+
+        self.perf.run()
+        self.log_results()
 
     def summary(self):
         return "Single consumer: %s" % throughput(self.perf)
@@ -256,10 +271,22 @@ class ThreeConsumers(KafkaBenchmark):
         super(ThreeConsumers, self).__init__(test_context)
 
         self.logger.info("BENCHMARK: Three consumers")
+        self.producer_perf = ProducerPerformanceService(
+            self.test_context, 1, self.kafka,
+            topic="test-rep-three", num_records=1000, record_size=self.msg_size_default, throughput=-1,
+            settings={'acks':1, 'batch.size':self.batch_size, 'buffer.memory':self.buffer_memory}
+        )
         self.perf = ConsumerPerformanceService(
             test_context, 3, self.kafka,
             topic="test-rep-three", num_records=self.msgs_default, throughput=-1, threads=1
         )
+
+    def run(self):
+        # pump messages into kafka before consuming
+        self.producer_perf.run()
+
+        self.perf.run()
+        self.log_results()
 
     def summary(self):
         return "Three consumers: %s", throughput(self.perf)

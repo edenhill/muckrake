@@ -15,6 +15,9 @@
 from ducktape.services.service import Service
 import time, re, json
 
+KAFKA_VERSIONS = ["trunk", "0.8.1.1", "0.8.2.0", "0.8.2.1"]
+DEFAULT_VERSION = "trunk"
+
 
 class KafkaService(Service):
 
@@ -27,7 +30,7 @@ class KafkaService(Service):
             "collect_default": False}
     }
 
-    def __init__(self, context, num_nodes, zk, topics=None):
+    def __init__(self, context, num_nodes, zk, topics=None, version=DEFAULT_VERSION):
         """
         :type context
         :type zk: ZookeeperService
@@ -36,6 +39,15 @@ class KafkaService(Service):
         super(KafkaService, self).__init__(context, num_nodes)
         self.zk = zk
         self.topics = topics
+        self.version = {idx: version for idx in range(1, num_nodes + 1)}
+
+    def update_version(self, version):
+        """Update version on all nodes."""
+        for idx in self.version:
+            self.version[idx] = version
+
+    def kafka_dir(self, node):
+        return "/opt/kafka-" + self.version[self.idx(node)]
 
     def start(self):
         super(KafkaService, self).start()
@@ -51,7 +63,7 @@ class KafkaService(Service):
 
     def start_node(self, node):
         node.account.create_file("/mnt/kafka.properties", self.render('kafka.properties', node=node, broker_id=self.idx(node)))
-        cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &"
+        cmd = "%s/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log &" % self.kafka_dir(node)
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)
         time.sleep(5)
@@ -66,7 +78,7 @@ class KafkaService(Service):
         node = self.nodes[0] # any node is fine here
         self.logger.info("Creating topic %s with settings %s", topic_cfg["topic"], topic_cfg)
 
-        cmd = "/opt/kafka/bin/kafka-topics.sh --zookeeper %(zk_connect)s --create "\
+        cmd = self.kafka_dir(node) + "/bin/kafka-topics.sh --zookeeper %(zk_connect)s --create "\
             "--topic %(topic)s --partitions %(partitions)d --replication-factor %(replication)d" % {
                 'zk_connect': self.zk.connect_setting(),
                 'topic': topic_cfg.get("topic"),
@@ -88,8 +100,8 @@ class KafkaService(Service):
 
     def describe_topic(self, topic):
         node = self.nodes[0]
-        cmd = "/opt/kafka/bin/kafka-topics.sh --zookeeper %s --topic %s --describe" % \
-              (self.zk.connect_setting(), topic)
+        cmd = "%s/bin/kafka-topics.sh --zookeeper %s --topic %s --describe" % \
+              (self.kafka_dir(node), self.zk.connect_setting(), topic)
         output = ""
         for line in node.account.ssh_capture(cmd):
             output += line
@@ -107,7 +119,7 @@ class KafkaService(Service):
 
         # create command
         cmd = "echo %s > %s && " % (json_str, json_file)
-        cmd += "/opt/kafka/bin/kafka-reassign-partitions.sh "\
+        cmd += self.kafka_dir(node) + "/bin/kafka-reassign-partitions.sh "\
                 "--zookeeper %(zk_connect)s "\
                 "--reassignment-json-file %(reassignment_file)s "\
                 "--verify" % {'zk_connect': self.zk.connect_setting(),
@@ -140,7 +152,7 @@ class KafkaService(Service):
 
         # create command
         cmd = "echo %s > %s && " % (json_str, json_file)
-        cmd += "/opt/kafka/bin/kafka-reassign-partitions.sh "\
+        cmd += self.kafka_dir(node) + "/bin/kafka-reassign-partitions.sh "\
                 "--zookeeper %(zk_connect)s "\
                 "--reassignment-json-file %(reassignment_file)s "\
                 "--execute" % {'zk_connect': self.zk.connect_setting(),
@@ -165,12 +177,12 @@ class KafkaService(Service):
     def get_leader_node(self, topic, partition=0):
         """ Get the leader replica for the given topic and partition.
         """
-        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s " \
+        node = self.nodes[0]  # any node is fine for the leader query
+        cmd = self.kafka_dir(node) + "/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s " \
               % self.zk.connect_setting()
         cmd += "get /brokers/topics/%s/partitions/%d/state" % (topic, partition)
         self.logger.debug(cmd)
 
-        node = self.nodes[0]
         self.logger.debug("Querying zookeeper to find leader replica for topic %s: \n%s" % (cmd, topic))
         partition_state = None
         for line in node.account.ssh_capture(cmd):
