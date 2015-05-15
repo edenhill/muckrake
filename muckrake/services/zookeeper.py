@@ -14,6 +14,7 @@
 
 from ducktape.services.service import Service
 
+import re
 import time
 
 
@@ -31,6 +32,10 @@ class ZookeeperService(Service):
         """
         super(ZookeeperService, self).__init__(context, num_nodes)
 
+    def start(self):
+        super(ZookeeperService, self).start()
+        self.wait_for_start()
+
     def start_node(self, node):
         idx = self.idx(node)
         self.logger.info("Starting ZK node %d on %s", idx, node.account.hostname)
@@ -38,12 +43,32 @@ class ZookeeperService(Service):
         node.account.ssh("mkdir -p /mnt/zookeeper")
         node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
         node.account.create_file("/mnt/zookeeper.properties", self.render('zookeeper.properties'))
-
         node.account.ssh(
             "/opt/kafka-0.8.2.1/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"
             % self.logs["zk_log"])
 
-        time.sleep(5)  # give it some time to start
+    def wait_for_start(self, timeout=5):
+        node = self.nodes[0]
+        stop_time = time.time() + timeout
+        while time.time() < stop_time:
+            cmd = "/opt/kafka-0.8.2.1/bin/kafka-run-class.sh kafka.tools.ZooKeeperMainWrapper -server %s:%d ls /" \
+                  % (node.account.hostname, 2181)
+
+            for line in node.account.ssh_capture(cmd, allow_fail=True):
+                match = re.match("^\[(.*)\]$", line)
+                if match is not None:
+                    groups = match.groups()
+                    znodes = [z.strip() for z in groups[0].split(",")]
+                    if "zookeeper" in znodes:
+                        self.logger.debug("zookeeper appears to be awake")
+                        return
+            time.sleep(.25)
+
+        msg = "Timed out waiting for zookeeper service to start"
+        self.logger.debug(msg)
+        raise Exception(msg)
+
+
 
     def stop_node(self, node, allow_fail=True):
         # This uses Kafka-REST's stop service script because it's better behaved
