@@ -30,7 +30,7 @@ class SchemaRegistryBenchmark(SchemaRegistryTest):
             self.schema_registry, self.subject, self.num_schemas, self.schemas_per_sec, settings={}
         )
 
-    def run(self):
+    def test(self):
         self.logger.info("Running SchemaRegistryBenchmark: registering %d schemas on %d schema registry node." %
                          (self.num_schemas, self.num_schema_registry))
         self.schema_registry_perf.run()
