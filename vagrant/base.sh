@@ -65,7 +65,7 @@ if [ -h /opt/hadoop-cdh ]; then
     # reset symlink
     rm -f /opt/hadoop-cdh
 fi
-if [ ! -e /opt/hadoop-2.5.0-cdh5.3 ]; then
+if [ ! -e /opt/hadoop-2.5.0-cdh5.3.0 ]; then
     wget http://archive.cloudera.com/cdh5/cdh/5/hadoop-2.5.0-cdh5.3.0.tar.gz
     tar xvzf hadoop-2.5.0-cdh5.3.0.tar.gz
 fi
