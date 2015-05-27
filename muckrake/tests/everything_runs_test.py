@@ -36,7 +36,7 @@ class EverythingRunsTest(Test):
             test_context, 1, self.schema_registry,
             retry_wait_sec=.02, num_tries=5, max_time_seconds=10, max_schemas=50)
 
-    def run(self):
+    def test(self):
         self.zk.start()
         self.kafka.start()
         self.schema_registry.start()
