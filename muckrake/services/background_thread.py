@@ -17,10 +17,30 @@ from ducktape.services.service import Service
 import threading
 
 
+
+
+
 class BackgroundThreadService(Service):
+
     def __init__(self, context, num_nodes):
         super(BackgroundThreadService, self).__init__(context, num_nodes)
         self.worker_threads = []
+        self.worker_errors = {}
+
+    def store_exceptions_decorator(self, worker):
+        """Intended to wrap a worker method used in a background thread.
+
+        When the worker method is wrapped, exceptions thrown by the background thread are stored in the service
+        instance. This gives us the ability to propagate exceptions thrown in background threads, if desired.
+        """
+        def decorated(idx, node):
+            try:
+                worker(idx, node)
+            except BaseException as e:
+                self.worker_errors.update({threading.currentThread().name: e})
+                raise e
+
+        return decorated
 
     def start_node(self, node):
         idx = self.idx(node)
@@ -28,7 +48,7 @@ class BackgroundThreadService(Service):
         self.logger.info("Running %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
         worker = threading.Thread(
             name=self.__class__.__name__ + "-worker-" + str(idx),
-            target=self._worker,
+            target=self.store_exceptions_decorator(self._worker),
             args=(idx, node)
         )
         worker.daemon = True
@@ -41,6 +61,10 @@ class BackgroundThreadService(Service):
             self.logger.debug("Waiting for worker thread %s finish", worker.name)
             worker.join()
         self.worker_threads = None
+
+        # Propagate exceptions thrown in background threads
+        if len(self.worker_errors) > 0:
+            raise Exception(str(self.worker_errors))
 
     def stop(self):
         if self.worker_threads is not None:
