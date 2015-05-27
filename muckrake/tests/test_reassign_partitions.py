@@ -65,7 +65,7 @@ class TestReassignPartitions(KafkaTest):
         self.num_partitions = 2
         self.timeout_sec = 60
 
-    def run(self):
+    def test(self):
 
         partition_info = parse_describe_topic(self.kafka.describe_topic("test_topic"))
         self.logger.debug("Partitions before reassignment:" + str(partition_info))

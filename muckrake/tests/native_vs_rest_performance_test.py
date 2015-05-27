@@ -45,7 +45,7 @@ class NativeVsRestProducerPerformance(RestProxyTest):
             topic="test-rep-one", num_records=msgs, record_size=msg_size, batch_size=batch_size, throughput=-1
         )
 
-    def run(self):
+    def test(self):
         self.producer_perf.run()
         self.rest_producer_perf.run()
 
@@ -87,7 +87,7 @@ class NativeVsRestConsumerPerformance(RestProxyTest):
             topic="test", num_records=msgs, throughput=-1
         )
 
-    def run(self):
+    def test(self):
         # Seed data. FIXME currently the REST consumer isn't properly finishing
         # unless we have some extra messages -- the last set isn't getting
         # properly returned for some reason.

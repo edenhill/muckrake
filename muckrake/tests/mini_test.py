@@ -25,7 +25,7 @@ class MiniTest(Test):
         self.zk = ZookeeperService(test_context, 1)
         self.kafka = KafkaService(test_context, 1, self.zk)
 
-    def run(self):
+    def test(self):
         self.zk.start()
         self.kafka.start()
 

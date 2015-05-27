@@ -39,7 +39,7 @@ class CamusHadoopV1Test(CamusTest):
             test_context, self.num_camus_perf,
             self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
 
-    def run(self):
+    def test(self):
         self.logger.info("Running Camus example on Hadoop distribution %s, Hadoop version %d",
                          self.hadoop_distro, self.hadoop_version)
         self.camus_perf.run()
@@ -70,7 +70,7 @@ class CamusHadoopV2Test(CamusTest):
             test_context, self.num_camus_perf,
             self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
 
-    def run(self):
+    def test(self):
         self.logger.info("Running Camus example on Hadoop distribution %s, Hadoop version %d",
                          self.hadoop_distro, self.hadoop_version)
         self.camus_perf.run()
@@ -100,7 +100,7 @@ class CamusHDPTest(CamusTest):
             test_context, self.num_camus_perf,
             self.kafka, self.hadoop, self.schema_registry, self.rest, settings={})
 
-    def run(self):
+    def test(self):
         self.logger.info("Running Camus example on Hadoop distribution %s, Hadoop version %d",
                          self.hadoop_distro, self.hadoop_version)
         self.camus_perf.run()
