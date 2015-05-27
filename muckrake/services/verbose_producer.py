@@ -18,13 +18,13 @@ import json
 
 
 class VerboseProducerService(BackgroundThreadService):
-    def __init__(self, context, num_nodes, kafka, topic, num_records):
+    def __init__(self, context, num_nodes, kafka, topic, num_messages):
         super(VerboseProducerService, self).__init__(context, num_nodes)
 
         self.kafka = kafka
         self.args = {
             'topic': topic,
-            'num_records': num_records
+            'num_messages': num_messages
         }
 
         self.acked = []
@@ -34,7 +34,7 @@ class VerboseProducerService(BackgroundThreadService):
     def _worker(self, idx, node):
         args = self.args.copy()
         args.update({'bootstrap_servers': self.kafka.bootstrap_servers()})
-        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.VerboseProducer --topic %(topic)s --broker-list %(bootstrap_servers)s" % args
+        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.VerboseProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s" % args
 
         self.logger.debug("Verbose producer %d command: %s", idx, cmd)
 
@@ -51,9 +51,8 @@ class VerboseProducerService(BackgroundThreadService):
                     self.acked.append(int(data["value"]))
 
             self.logger.debug("Verbose producer node %d: %s", idx, line.strip())
-            print "Verbose producer node %d: %s" % (idx, line.strip())
 
-        print "acked: ", self.acked
+        print "not-acked: ", self.not_acked_values
         # collect information on failures and successes
 
     def try_parse_json(self, str):
