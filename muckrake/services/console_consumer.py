@@ -12,74 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.services.service import Service
-
 from muckrake.services.background_thread import BackgroundThreadService
-
-import time
-
-
-
-
-"""
---blacklist <blacklist>
---consumer.config <config file>
---csv-reporter-enabled
---formatter <class>
-
-
-
---delete-consumer-offsets
---from-beginning
---max-messages <Integer: num_messages>
---metrics-dir <metrics dictory>
---property <prop>
---skip-message-on-error
---topic <topic>
---whitelist <whitelist>
---zookeeper <urls>                      REQUIRED: The connection string for
-                                          the zookeeper connection in the form
-                                          host:port. Multiple URLS can be
-                                          given to allow fail-over.
-"""
-
-
-"""
---blacklist
---csv-reporter-enabled
---formatter
---from-beginning
---max-messages
---metrics-dir
---skip-message-on-error
---topic
---zookeeper <urls>                      REQUIRED: The connection string for
-                                          the zookeeper connection in the form
-                                          host:port. Multiple URLS can be
-                                          given to allow fail-over.
-
---autocommit.interval.ms
---consumer-timeout-ms
---fetch-size
---group
---max-wait-ms
---min-fetch-bytes
---property
---refresh-leader-backoff-ms
---socket-buffer-size
---socket-timeout-ms
---whitelist
-"""
-
-
-"""
-bin/kafka-console-consumer.sh --zookeeper localhost:2181 --topic test --from-beginning
-"""
 
 import re
 
 
 def is_message(msg):
+    """Default method used to check whether text pulled from console consumer is a message.
+
+    Some of the text pulled from stdout of console consumer process is log output etc, so this provides a
+    default way to validate that a line pulled from stdout is a message.
+
+    It simply checks that the string is a sequence of digits.
+    """
     return re.match('^\d+$', msg) is not None
 
 
@@ -102,10 +47,11 @@ class ConsoleConsumerService(BackgroundThreadService):
         # form the start command
         args = self.args.copy()
         args.update({'zk_connect': self.kafka.zk.connect_setting()})
-        cmd = "/opt/kafka-0.8.1.1/bin/kafka-console-consumer.sh "\
+        cmd = "/opt/kafka/bin/kafka-console-consumer.sh "\
               "--topic %(topic)s --zookeeper %(zk_connect)s" % args
         if self.from_beginning:
             cmd += " --from-beginning"
+        cmd += " &"
 
         # Run and capture output
         self.logger.debug("Console consumer %d command: %s", idx, cmd)
@@ -113,6 +59,8 @@ class ConsoleConsumerService(BackgroundThreadService):
             msg = line.strip()
             if self.message_validator(msg):
                 self.messages_consumed[idx].append(msg)
+            if self.ready_to_finish:
+                break
 
     def start_node(self, node):
         self.ready_to_finish = False
