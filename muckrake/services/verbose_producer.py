@@ -15,9 +15,17 @@
 from muckrake.services.background_thread import BackgroundThreadService
 
 import json
+from Queue import Queue
 
 
 class VerboseProducerService(BackgroundThreadService):
+
+    logs = {
+        "producer_log": {
+            "path": "/mnt/producer.log",
+            "collect_default": True}
+    }
+
     def __init__(self, context, num_nodes, kafka, topic, num_messages):
         super(VerboseProducerService, self).__init__(context, num_nodes)
 
@@ -27,36 +35,38 @@ class VerboseProducerService(BackgroundThreadService):
             'num_messages': num_messages
         }
 
-        self.acked = []
-        self.not_acked_data = []
-        self.not_acked_values = []
+        self.acked_values = Queue()
+        self.not_acked_data = Queue()
+        self.not_acked_values = Queue()
 
     def _worker(self, idx, node):
         args = self.args.copy()
         args.update({'bootstrap_servers': self.kafka.bootstrap_servers()})
-        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.VerboseProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s" % args
+        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.VerboseProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s 2>> /mnt/producer.log | tee -a /mnt/producer.log &" % args
 
-        self.logger.debug("Verbose producer %d command: %s", idx, cmd)
+        self.logger.debug("Verbose producer %d command: %s" % (idx, cmd))
 
         for line in node.account.ssh_capture(cmd):
             line = line.strip()
 
             data = self.try_parse_json(line)
             if data is not None:
-                if hasattr(data, "exception"):
+                self.logger.debug("VerboseProducer: " + str(data))
+                if "exception" in data.keys():
                     data["node"] = idx
-                    self.not_acked.append(data)
-                    self.not_acked_values.append(int(data["value"]))
+                    self.not_acked_data.put(data, block=True)
+                    self.not_acked_values.put(int(data["value"]), block=True)
                 else:
-                    self.acked.append(int(data["value"]))
+                    self.acked_values.put(int(data["value"]), block=True)
 
-            self.logger.debug("Verbose producer node %d: %s", idx, line.strip())
+    def stop_node(self, node):
+        node.account.kill_process("VerboseProducer")
 
-        print "not-acked: ", self.not_acked_values
-        # collect information on failures and successes
+    def clean_node(self, node):
+        node.account.ssh("rm -rf /mnt/producer.log")
 
     def try_parse_json(self, str):
-
+        """Try to parse a string as json. Return None if not parseable."""
         try:
             record = json.loads(str)
             return record

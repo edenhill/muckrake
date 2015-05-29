@@ -30,34 +30,56 @@ def is_message(msg):
 
 class ConsoleConsumerService(BackgroundThreadService):
 
-    def __init__(self, context, num_nodes, kafka, topic, message_validator=is_message, from_beginning=True):
+    logs = {
+        "consumer_log": {
+            "path": "/mnt/consumer.log",
+            "collect_default": True}
+        }
+
+    def __init__(self, context, num_nodes, kafka, topic, message_validator=is_message, from_beginning=True, consumer_timeout_ms=None):
         super(ConsoleConsumerService, self).__init__(context, num_nodes)
         self.kafka = kafka
         self.args = {
             'topic': topic,
         }
 
+        self.consumer_timeout_ms = consumer_timeout_ms
+
         self.ready_to_finish = False
         self.from_beginning = from_beginning
         self.message_validator = message_validator
         self.messages_consumed = {idx: [] for idx in range(1, num_nodes + 1)}
 
-    def _worker(self, idx, node):
 
-        # form the start command
+    @property
+    def start_cmd(self):
         args = self.args.copy()
         args.update({'zk_connect': self.kafka.zk.connect_setting()})
         cmd = "/opt/kafka/bin/kafka-console-consumer.sh "\
-              "--topic %(topic)s --zookeeper %(zk_connect)s" % args
+              "--topic %(topic)s --zookeeper %(zk_connect)s --consumer.config /mnt/console_consumer.properties" % args
+
         if self.from_beginning:
             cmd += " --from-beginning"
-        cmd += " &"
+
+        cmd += " 2>> /mnt/consumer.log | tee -a /mnt/consumer.log &"
+
+        return cmd
+
+    def _worker(self, idx, node):
+        # form config file
+        if self.consumer_timeout_ms is not None:
+            prop_file = self.render('console_consumer.properties', consumer_timeout_ms=self.consumer_timeout_ms)
+        else:
+            prop_file = self.render('console_consumer.properties')
+        node.account.create_file("/mnt/console_consumer.properties", prop_file)
 
         # Run and capture output
+        cmd = self.start_cmd
         self.logger.debug("Console consumer %d command: %s", idx, cmd)
-        for line in node.account.ssh_capture(cmd):
+        for line in node.account.ssh_capture(cmd, allow_fail=False, timeout=10):
             msg = line.strip()
             if self.message_validator(msg):
+                self.logger.debug("consumed a message: " + msg)
                 self.messages_consumed[idx].append(msg)
             if self.ready_to_finish:
                 break
@@ -69,6 +91,9 @@ class ConsoleConsumerService(BackgroundThreadService):
     def stop_node(self, node):
         self.ready_to_finish = True
         node.account.kill_process("java", allow_fail=True)
+
+    def clean_node(self, node):
+        node.account.ssh("rm -rf /mnt/console_consumer.properties /mnt/consumer.log", allow_fail=True)
 
 
 """
