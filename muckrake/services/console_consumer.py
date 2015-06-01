@@ -76,7 +76,7 @@ class ConsoleConsumerService(BackgroundThreadService):
         # Run and capture output
         cmd = self.start_cmd
         self.logger.debug("Console consumer %d command: %s", idx, cmd)
-        for line in node.account.ssh_capture(cmd, allow_fail=False, timeout=10):
+        for line in node.account.ssh_capture(cmd):
             msg = line.strip()
             if self.message_validator(msg):
                 self.logger.debug("consumed a message: " + msg)

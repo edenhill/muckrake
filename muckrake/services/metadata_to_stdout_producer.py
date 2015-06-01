@@ -18,7 +18,7 @@ import json
 from Queue import Queue
 
 
-class VerboseProducerService(BackgroundThreadService):
+class MetadataToStdoutProducerService(BackgroundThreadService):
 
     logs = {
         "producer_log": {
@@ -27,7 +27,7 @@ class VerboseProducerService(BackgroundThreadService):
     }
 
     def __init__(self, context, num_nodes, kafka, topic, num_messages):
-        super(VerboseProducerService, self).__init__(context, num_nodes)
+        super(MetadataToStdoutProducerService, self).__init__(context, num_nodes)
 
         self.kafka = kafka
         self.args = {
@@ -42,7 +42,7 @@ class VerboseProducerService(BackgroundThreadService):
     def _worker(self, idx, node):
         args = self.args.copy()
         args.update({'bootstrap_servers': self.kafka.bootstrap_servers()})
-        cmd = "/opt/kafka/bin/kafka-run-class.sh kafka.tools.VerboseProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s 2>> /mnt/producer.log | tee -a /mnt/producer.log &" % args
+        cmd = "/opt/kafka/bin/kafka-run-class.sh org.apache.kafka.clients.tools.MetadataToStdoutProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s 2>> /mnt/producer.log | tee -a /mnt/producer.log &" % args
 
         self.logger.debug("Verbose producer %d command: %s" % (idx, cmd))
 
@@ -51,7 +51,7 @@ class VerboseProducerService(BackgroundThreadService):
 
             data = self.try_parse_json(line)
             if data is not None:
-                self.logger.debug("VerboseProducer: " + str(data))
+                self.logger.debug("MetadataToStdoutProducer: " + str(data))
                 if "exception" in data.keys():
                     data["node"] = idx
                     self.not_acked_data.put(data, block=True)
@@ -60,15 +60,16 @@ class VerboseProducerService(BackgroundThreadService):
                     self.acked_values.put(int(data["value"]), block=True)
 
     def stop_node(self, node):
-        node.account.kill_process("VerboseProducer")
+        node.account.kill_process("MetadataToStdoutProducer")
 
     def clean_node(self, node):
         node.account.ssh("rm -rf /mnt/producer.log")
 
-    def try_parse_json(self, str):
+    def try_parse_json(self, string):
         """Try to parse a string as json. Return None if not parseable."""
         try:
-            record = json.loads(str)
+            record = json.loads(string)
             return record
         except ValueError:
+            self.logger.debug("Could not parse as json: %s" % str(string))
             return None

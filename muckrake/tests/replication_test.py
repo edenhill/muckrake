@@ -16,7 +16,7 @@ from ducktape.tests.test import Test
 
 from muckrake.services.zookeeper import ZookeeperService
 from muckrake.services.kafka import KafkaService
-from muckrake.services.verbose_producer import VerboseProducerService
+from muckrake.services.metadata_to_stdout_producer import MetadataToStdoutProducerService
 from muckrake.services.console_consumer import ConsoleConsumerService
 
 import time
@@ -40,7 +40,7 @@ class ReplicationTest(Test):
 
     def run_with_failure(self, failure):
         """This is the top-level test template."""
-        self.producer = VerboseProducerService(self.test_context, 1, self.kafka, self.topic, self.msgs)
+        self.producer = MetadataToStdoutProducerService(self.test_context, 1, self.kafka, self.topic, self.msgs)
         self.consumer = ConsoleConsumerService(self.test_context, 1, self.kafka, self.topic, consumer_timeout_ms=3000)
 
         self.zk.start()
@@ -108,7 +108,8 @@ class ReplicationTest(Test):
         msg = ""
         if num_acked + num_not_acked != self.msgs:
             success = False
-            msg += "acked + not_acked != total attempted: %d != %d" % (num_acked + num_not_acked, self.msgs) + "\n"
+            msg += "acked + not_acked != total attempted. acked: %d, not-acked: %d, acked + not-acked: %d, total attempted: %d" % \
+                   (num_acked, num_not_acked, num_acked + num_not_acked, self.msgs) + "\n"
 
         if len(set(self.consumed)) != len(self.consumed):
             # There are duplicates. This is ok, so report it but don't fail the test
