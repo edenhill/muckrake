@@ -30,7 +30,7 @@ class KafkaLeaderCleanFailover(SchemaRegistryFailoverTest):
 
     def drive_failures(self):
         time.sleep(3)
-        leader_node = self.kafka.get_leader_node(topic="_schemas", partition=0)
+        leader_node = self.kafka.leader(topic="_schemas", partition=0)
         self.kafka.stop_node(leader_node)
 
 
@@ -44,7 +44,7 @@ class KafkaLeaderHardFailover(SchemaRegistryFailoverTest):
 
     def drive_failures(self):
         time.sleep(3)
-        leader_node = self.kafka.get_leader_node(topic="_schemas", partition=0)
+        leader_node = self.kafka.leader(topic="_schemas", partition=0)
         self.kafka.stop_node(leader_node, clean_shutdown=False)
 
 
@@ -56,7 +56,7 @@ class KafkaBrokerCleanBounce(SchemaRegistryFailoverTest):
     def drive_failures(self):
         # Bounce leader several times with some wait in-between
         for i in range(5):
-            prev_leader_node = self.kafka.get_leader_node(topic="_schemas", partition=0)
+            prev_leader_node = self.kafka.leader(topic="_schemas", partition=0)
             self.kafka.restart_node(prev_leader_node, wait_sec=5, clean_shutdown=False)
 
             # Wait long enough for previous leader to probably be awake again
@@ -71,7 +71,7 @@ class KafkaBrokerHardBounce(SchemaRegistryFailoverTest):
     def drive_failures(self):
         # Bounce leader several times with some wait in-between
         for i in range(1):
-            prev_leader_node = self.kafka.get_leader_node(topic="_schemas", partition=0)
+            prev_leader_node = self.kafka.leader(topic="_schemas", partition=0)
             self.kafka.restart_node(prev_leader_node, wait_sec=7, clean_shutdown=False)
 
             # Wait long enough for previous leader to probably be awake again

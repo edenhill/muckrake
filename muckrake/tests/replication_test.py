@@ -13,86 +13,103 @@
 # limitations under the License.
 
 from ducktape.tests.test import Test
+from ducktape.utils.util import wait_until
 
 from muckrake.services.zookeeper import ZookeeperService
 from muckrake.services.kafka import KafkaService
-from muckrake.services.metadata_to_stdout_producer import MetadataToStdoutProducerService
-from muckrake.services.console_consumer import ConsoleConsumerService
+from muckrake.services.verifiable_producer import VerifiableProducer
+from muckrake.services.console_consumer import ConsoleConsumer
 
+import signal
 import time
 
 
 class ReplicationTest(Test):
-    """ Simple replication test."""
+    """ Simple replication tests."""
+
     def __init__(self, test_context):
         """:type test_context: ducktape.tests.test.TestContext"""
         super(ReplicationTest, self).__init__(test_context=test_context)
 
         self.topic = "test_topic"
-        self.zk = ZookeeperService(test_context, num_nodes=2)
+        self.zk = ZookeeperService(test_context, num_nodes=1)
         self.kafka = KafkaService(test_context, num_nodes=3, zk=self.zk, topics={self.topic: {
                                                                     "partitions": 3,
                                                                     "replication-factor": 3,
                                                                     "min.insync.replicas": 2}
                                                                 })
-        self.msgs = 100000
         self.timeout_sec = 600
+        self.producer_throughput = 10000
 
-    def run_with_failure(self, failure):
-        """This is the top-level test template."""
-        self.producer = MetadataToStdoutProducerService(self.test_context, 1, self.kafka, self.topic, self.msgs)
-        self.consumer = ConsoleConsumerService(self.test_context, 1, self.kafka, self.topic, consumer_timeout_ms=3000)
-
+    def setUp(self):
         self.zk.start()
         self.kafka.start()
 
-        # Produce with failures
+    def run_with_failure(self, failure):
+        """This is the top-level test template.
+
+        The steps are:
+            Produce messages in the background while driving some failure condition
+            Stop producing
+            Consume all messages
+            Validate that messages acked by brokers were consumed
+
+        Note that consuming is a bit tricky, at least with console consumer. The goal is to consume all messages
+        (foreach partition) in the topic. In this case, waiting for the last message may cause the consumer to stop
+        too soon since console consumer is consuming multiple partitions from a single thread and therefore we lose
+        ordering guarantees.
+
+        Waiting on a count of consumed messages can be unreliable: if we stop consuming when num_consumed == num_acked,
+        we might exit early if some messages are duplicated (though not an issue here since producer retries==0)
+
+        Therefore rely here on the consumer.timeout.ms setting which times out on the interval between successively
+        consumed messages. Since we run the producer to completion before running the consumer, this is a reliable
+        indicator that nothing is left to consume.
+
+        """
+        self.producer = VerifiableProducer(self.test_context, 1, self.kafka, self.topic, self.producer_throughput)
+        self.consumer = ConsoleConsumer(self.test_context, 1, self.kafka, self.topic, consumer_timeout_ms=3000)
+
+        # Produce in a background thread while driving broker failures
         self.producer.start()
-        time.sleep(.25)
+        if not wait_until(lambda: self.producer.num_acked > 5, timeout_sec=5):
+            raise RuntimeError("Producer failed to start in a reasonable amount of time.")
         failure()
-        self.producer.wait()
+        self.producer.stop()
 
-        self.not_acked = []
-        self.acked = []
-        while not self.producer.not_acked_values.empty():
-            self.not_acked.append(self.producer.not_acked_values.get())
-        while not self.producer.acked_values.empty():
-            self.acked.append(self.producer.acked_values.get())
 
-        self.logger.info("num not acked: %d" % len(self.not_acked))
-        self.logger.info("num acked:     %d" % len(self.acked))
+        self.acked = self.producer.acked
+        self.not_acked = self.producer.not_acked
+        self.logger.info("num not acked: %d" % self.producer.num_not_acked)
+        self.logger.info("num acked:     %d" % self.producer.num_acked)
 
-        # Consume messages and validate
+        # Consume all messages
         self.consumer.start()
         self.consumer.wait()
-        self.consumed = [int(msg) for msg in self.consumer.messages_consumed[1]]
+        self.consumed = self.consumer.messages_consumed[1]
         self.logger.info("num consumed:  %d" % len(self.consumed))
 
+        # Check produced vs consumed
         self.validate()
 
     def clean_shutdown(self):
         """Discover leader node for our topic and shut it down cleanly."""
-        kafka_leader = self.kafka.get_leader_node(self.topic, partition=0)
-        self.kafka.stop_node(kafka_leader, clean_shutdown=True)
+        self.kafka.signal_leader(self.topic, partition=0, sig=signal.SIGTERM)
 
     def hard_shutdown(self):
         """Discover leader node for our topic and shut it down with a hard kill."""
-        kafka_leader = self.kafka.get_leader_node(self.topic, partition=0)
-        self.kafka.stop_node(kafka_leader, clean_shutdown=False)
+        self.kafka.signal_leader(self.topic, partition=0, sig=signal.SIGKILL)
 
     def clean_bounce(self):
-        """Chase the leader and restart it cleanly."""
+        """Chase the leader of one partition and restart it cleanly."""
         for i in range(5):
-            prev_leader_node = self.kafka.get_leader_node(topic=self.topic, partition=0)
+            prev_leader_node = self.kafka.leader(topic=self.topic, partition=0)
             self.kafka.restart_node(prev_leader_node, wait_sec=5, clean_shutdown=True)
-
-            # Wait long enough for previous leader to probably be awake again
-            time.sleep(6)
 
     def hard_bounce(self):
         """Chase the leader and restart it cleanly."""
         for i in range(5):
-            prev_leader_node = self.kafka.get_leader_node(topic=self.topic, partition=0)
+            prev_leader_node = self.kafka.leader(topic=self.topic, partition=0)
             self.kafka.restart_node(prev_leader_node, wait_sec=5, clean_shutdown=False)
 
             # Wait long enough for previous leader to probably be awake again
@@ -101,15 +118,8 @@ class ReplicationTest(Test):
     def validate(self):
         """Check that produced messages were consumed."""
 
-        num_acked = len(self.acked)
-        num_not_acked = len(self.not_acked)
-
         success = True
         msg = ""
-        if num_acked + num_not_acked != self.msgs:
-            success = False
-            msg += "acked + not_acked != total attempted. acked: %d, not-acked: %d, acked + not-acked: %d, total attempted: %d" % \
-                   (num_acked, num_not_acked, num_acked + num_not_acked, self.msgs) + "\n"
 
         if len(set(self.consumed)) != len(self.consumed):
             # There are duplicates. This is ok, so report it but don't fail the test
@@ -117,7 +127,7 @@ class ReplicationTest(Test):
 
         if not set(self.consumed).issuperset(set(self.acked)):
             # Every acked message must appear in the logs. I.e. consumed messages must be superset of acked messages.
-            acked_minus_consumed = set(self.acked) - set(self.consumed)
+            acked_minus_consumed = set(self.producer.acked) - set(self.consumed)
             success = False
             msg += "At least one acked message did not appear in the consumed messages. acked_minus_consumed: " + str(acked_minus_consumed)
 
@@ -134,11 +144,9 @@ class ReplicationTest(Test):
         self.run_with_failure(self.hard_shutdown)
 
     def test_clean_bounce(self):
-        self.msgs = 300000
         self.run_with_failure(self.clean_bounce)
 
     def test_hard_bounce(self):
-        self.msgs = 300000
         self.run_with_failure(self.hard_bounce)
 
 
