@@ -26,12 +26,12 @@ class VerifiableProducer(BackgroundThreadService):
             "collect_default": True}
     }
 
-    def __init__(self, context, num_nodes, kafka, topic, num_messages=-1, throughput=100000):
+    def __init__(self, context, num_nodes, kafka, topic, max_messages=-1, throughput=100000):
         super(VerifiableProducer, self).__init__(context, num_nodes)
 
         self.kafka = kafka
         self.topic = topic
-        self.max_messages = num_messages
+        self.max_messages = max_messages
         self.throughput = throughput
 
         self.acked_values = []
@@ -64,11 +64,11 @@ class VerifiableProducer(BackgroundThreadService):
 
     @property
     def start_cmd(self):
-        cmd = "/opt/kafka/bin/kafka-run-class.sh org.apache.kafka.clients.tools.VerifiableProducer" \
+        cmd = "/opt/kafka/bin/kafka-verifiable-producer.sh" \
               " --topic %s --broker-list %s" % (self.topic, self.kafka.bootstrap_servers())
         if self.max_messages > 0:
             cmd += " --max-messages %s" % str(self.max_messages)
-        if self.throughput> 0:
+        if self.throughput > 0:
             cmd += " --throughput %s" % str(self.throughput)
 
         cmd += " 2>> /mnt/producer.log | tee -a /mnt/producer.log &"
@@ -107,7 +107,7 @@ class VerifiableProducer(BackgroundThreadService):
             self.lock.release()
 
     def stop_node(self, node):
-        node.account.kill_process("VerifiableProducer")
+        node.account.kill_process("VerifiableProducer", allow_fail=True)
 
     def clean_node(self, node):
         node.account.ssh("rm -rf /mnt/producer.log")

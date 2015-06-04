@@ -38,7 +38,6 @@ class ReplicationTest(Test):
                                                                     "replication-factor": 3,
                                                                     "min.insync.replicas": 2}
                                                                 })
-        self.timeout_sec = 600
         self.producer_throughput = 10000
 
     def setUp(self):
@@ -67,7 +66,7 @@ class ReplicationTest(Test):
         indicator that nothing is left to consume.
 
         """
-        self.producer = VerifiableProducer(self.test_context, 1, self.kafka, self.topic, self.producer_throughput)
+        self.producer = VerifiableProducer(self.test_context, 1, self.kafka, self.topic, throughput=self.producer_throughput)
         self.consumer = ConsoleConsumer(self.test_context, 1, self.kafka, self.topic, consumer_timeout_ms=3000)
 
         # Produce in a background thread while driving broker failures
@@ -76,7 +75,6 @@ class ReplicationTest(Test):
             raise RuntimeError("Producer failed to start in a reasonable amount of time.")
         failure()
         self.producer.stop()
-
 
         self.acked = self.producer.acked
         self.not_acked = self.producer.not_acked
