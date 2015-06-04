@@ -15,7 +15,6 @@
 from muckrake.services.background_thread import BackgroundThreadService
 
 import json
-from Queue import Queue
 
 
 class VerifiableProducer(BackgroundThreadService):
@@ -35,7 +34,7 @@ class VerifiableProducer(BackgroundThreadService):
         self.throughput = throughput
 
         self.acked_values = []
-        self.not_acked_data = []
+        self.data = []
         self.not_acked_values = []
 
     def _worker(self, idx, node):
@@ -52,13 +51,14 @@ class VerifiableProducer(BackgroundThreadService):
 
                 try:
                     self.lock.acquire()
+                    self.data.append(data)
                     if data["name"] == "producer_send_error":
                         data["node"] = idx
-                        self.not_acked_data.append(data)
                         self.not_acked_values.append(int(data["value"]))
 
                     elif data["name"] == "producer_send_success":
                         self.acked_values.append(int(data["value"]))
+
                 finally:
                     self.lock.release()
 
@@ -107,7 +107,11 @@ class VerifiableProducer(BackgroundThreadService):
             self.lock.release()
 
     def stop_node(self, node):
-        node.account.kill_process("VerifiableProducer", allow_fail=True)
+        node.account.kill_process("VerifiableProducer", allow_fail=False)
+        # block until the corresponding thread exits
+        if len(self.worker_threads) >= self.idx(node):
+            # Need to guard this because stop is preemtively called before the threads are added and started
+            self.worker_threads[self.idx(node) - 1].join()
 
     def clean_node(self, node):
         node.account.ssh("rm -rf /mnt/producer.log")
