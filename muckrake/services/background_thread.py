@@ -17,30 +17,29 @@ from ducktape.services.service import Service
 import threading
 
 
-
-
-
 class BackgroundThreadService(Service):
 
     def __init__(self, context, num_nodes):
         super(BackgroundThreadService, self).__init__(context, num_nodes)
         self.worker_threads = []
         self.worker_errors = {}
+        self.lock = threading.Lock()
 
-    def store_exceptions_decorator(self, worker):
-        """Intended to wrap a worker method used in a background thread.
+    def _protected_worker(self, idx, node):
+        """Protected worker captures exceptions and makes them available to the main thread.
 
-        When the worker method is wrapped, exceptions thrown by the background thread are stored in the service
-        instance. This gives us the ability to propagate exceptions thrown in background threads, if desired.
+        This gives us the ability to propagate exceptions thrown in background threads, if desired.
         """
-        def decorated(idx, node):
+        try:
+            self._worker(idx, node)
+        except BaseException as e:
             try:
-                worker(idx, node)
-            except BaseException as e:
-                self.worker_errors.update({threading.currentThread().name: e})
-                raise e
+                self.lock.acquire()
+                self.worker_errors[threading.currentThread().name] = e
+            finally:
+                self.lock.release()
 
-        return decorated
+            raise e
 
     def start_node(self, node):
         idx = self.idx(node)
@@ -48,7 +47,7 @@ class BackgroundThreadService(Service):
         self.logger.info("Running %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
         worker = threading.Thread(
             name=self.__class__.__name__ + "-worker-" + str(idx),
-            target=self.store_exceptions_decorator(self._worker),
+            target=self._protected_worker,
             args=(idx, node)
         )
         worker.daemon = True
@@ -63,6 +62,7 @@ class BackgroundThreadService(Service):
         self.worker_threads = None
 
         # Propagate exceptions thrown in background threads
+        self.lock.acquire()
         if len(self.worker_errors) > 0:
             raise Exception(str(self.worker_errors))
 

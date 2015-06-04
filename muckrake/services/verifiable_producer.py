@@ -18,7 +18,7 @@ import json
 from Queue import Queue
 
 
-class MetadataToStdoutProducerService(BackgroundThreadService):
+class VerifiableProducer(BackgroundThreadService):
 
     logs = {
         "producer_log": {
@@ -27,7 +27,7 @@ class MetadataToStdoutProducerService(BackgroundThreadService):
     }
 
     def __init__(self, context, num_nodes, kafka, topic, num_messages):
-        super(MetadataToStdoutProducerService, self).__init__(context, num_nodes)
+        super(VerifiableProducer, self).__init__(context, num_nodes)
 
         self.kafka = kafka
         self.args = {
@@ -42,7 +42,7 @@ class MetadataToStdoutProducerService(BackgroundThreadService):
     def _worker(self, idx, node):
         args = self.args.copy()
         args.update({'bootstrap_servers': self.kafka.bootstrap_servers()})
-        cmd = "/opt/kafka/bin/kafka-run-class.sh org.apache.kafka.clients.tools.MetadataToStdoutProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s 2>> /mnt/producer.log | tee -a /mnt/producer.log &" % args
+        cmd = "/opt/kafka/bin/kafka-run-class.sh org.apache.kafka.clients.tools.VerifiableProducer --topic %(topic)s --broker-list %(bootstrap_servers)s --num-messages %(num_messages)s 2>> /mnt/producer.log | tee -a /mnt/producer.log &" % args
 
         self.logger.debug("Verbose producer %d command: %s" % (idx, cmd))
 
@@ -51,7 +51,7 @@ class MetadataToStdoutProducerService(BackgroundThreadService):
 
             data = self.try_parse_json(line)
             if data is not None:
-                self.logger.debug("MetadataToStdoutProducer: " + str(data))
+                self.logger.debug("VerifiableProducer: " + str(data))
                 if "exception" in data.keys():
                     data["node"] = idx
                     self.not_acked_data.put(data, block=True)
@@ -60,7 +60,7 @@ class MetadataToStdoutProducerService(BackgroundThreadService):
                     self.acked_values.put(int(data["value"]), block=True)
 
     def stop_node(self, node):
-        node.account.kill_process("MetadataToStdoutProducer")
+        node.account.kill_process("VerifiableProducer")
 
     def clean_node(self, node):
         node.account.ssh("rm -rf /mnt/producer.log")
