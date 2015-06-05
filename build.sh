@@ -47,7 +47,9 @@ KAFKA_VERSION=0.8.2.0
 
 if [ ! -d $projects_dir/kafka ]; then
     echo "Cloning Kafka"
-    git clone http://git-wip-us.apache.org/repos/asf/kafka.git $projects_dir/kafka
+    # temporarily pull Kafka from confluent's fork so we can use our system_test
+    # git clone http://git-wip-us.apache.org/repos/asf/kafka.git $projects_dir/kafka
+    git clone https://github.com/confluentinc/kafka $projects_dir/kafka
 fi
 
 pushd $projects_dir/kafka
@@ -57,7 +59,8 @@ if [ "x$UPDATE" == "xyes" ]; then
     git fetch origin
 fi
 
-git checkout tags/$KAFKA_VERSION
+#git checkout tags/$KAFKA_VERSION
+git checkout system-tests
 
 # FIXME we should be installing the version of Kafka we built into the local
 # Maven repository and making sure we specify the right Kafka version when

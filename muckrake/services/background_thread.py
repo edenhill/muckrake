@@ -18,9 +18,25 @@ import threading
 
 
 class BackgroundThreadService(Service):
+
     def __init__(self, context, num_nodes):
         super(BackgroundThreadService, self).__init__(context, num_nodes)
         self.worker_threads = []
+        self.worker_errors = {}
+        self.lock = threading.RLock()
+
+    def _protected_worker(self, idx, node):
+        """Protected worker captures exceptions and makes them available to the main thread.
+
+        This gives us the ability to propagate exceptions thrown in background threads, if desired.
+        """
+        try:
+            self._worker(idx, node)
+        except BaseException as e:
+            with self.lock:
+                self.worker_errors[threading.currentThread().name] = e
+
+            raise e
 
     def start_node(self, node):
         idx = self.idx(node)
@@ -28,7 +44,7 @@ class BackgroundThreadService(Service):
         self.logger.info("Running %s node %d on %s", self.__class__.__name__, idx, node.account.hostname)
         worker = threading.Thread(
             name=self.__class__.__name__ + "-worker-" + str(idx),
-            target=self._worker,
+            target=self._protected_worker,
             args=(idx, node)
         )
         worker.daemon = True
@@ -41,6 +57,11 @@ class BackgroundThreadService(Service):
             self.logger.debug("Waiting for worker thread %s finish", worker.name)
             worker.join()
         self.worker_threads = None
+
+        # Propagate exceptions thrown in background threads
+        with self.lock:
+            if len(self.worker_errors) > 0:
+                raise Exception(str(self.worker_errors))
 
     def stop(self):
         if self.worker_threads is not None:
