@@ -25,7 +25,9 @@ import time
 
 
 class ReplicationTest(Test):
-    """ Simple replication tests."""
+    """Replication tests.
+    These tests verify that replication provides simple durability guarantees by checking that data acked by
+    brokers is still available for consumption in the face of various failure scenarios."""
 
     def __init__(self, test_context):
         """:type test_context: ducktape.tests.test.TestContext"""
@@ -55,7 +57,7 @@ class ReplicationTest(Test):
 
         The steps are:
             Produce messages in the background while driving some failure condition
-            Stop producing
+            When done driving failures, immediately stop producing
             Consume all messages
             Validate that messages acked by brokers were consumed
 
