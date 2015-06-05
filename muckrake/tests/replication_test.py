@@ -39,10 +39,16 @@ class ReplicationTest(Test):
                                                                     "min.insync.replicas": 2}
                                                                 })
         self.producer_throughput = 10000
+        self.num_producers = 1
+        self.num_consumers = 1
 
     def setUp(self):
         self.zk.start()
         self.kafka.start()
+
+    def min_cluster_size(self):
+        """Override this since we're adding services outside of the constructor"""
+        return super(ReplicationTest, self).min_cluster_size() + self.num_producers + self.num_consumers
 
     def run_with_failure(self, failure):
         """This is the top-level test template.
@@ -66,8 +72,8 @@ class ReplicationTest(Test):
         indicator that nothing is left to consume.
 
         """
-        self.producer = VerifiableProducer(self.test_context, 1, self.kafka, self.topic, throughput=self.producer_throughput)
-        self.consumer = ConsoleConsumer(self.test_context, 1, self.kafka, self.topic, consumer_timeout_ms=3000)
+        self.producer = VerifiableProducer(self.test_context, self.num_producers, self.kafka, self.topic, throughput=self.producer_throughput)
+        self.consumer = ConsoleConsumer(self.test_context, self.num_consumers, self.kafka, self.topic, consumer_timeout_ms=3000)
 
         # Produce in a background thread while driving broker failures
         self.producer.start()

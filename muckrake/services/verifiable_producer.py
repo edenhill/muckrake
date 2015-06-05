@@ -34,7 +34,6 @@ class VerifiableProducer(BackgroundThreadService):
         self.throughput = throughput
 
         self.acked_values = []
-        self.data = []
         self.not_acked_values = []
 
     def _worker(self, idx, node):
@@ -49,18 +48,13 @@ class VerifiableProducer(BackgroundThreadService):
 
                 self.logger.debug("VerifiableProducer: " + str(data))
 
-                try:
-                    self.lock.acquire()
-                    self.data.append(data)
+                with self.lock:
                     if data["name"] == "producer_send_error":
                         data["node"] = idx
                         self.not_acked_values.append(int(data["value"]))
 
                     elif data["name"] == "producer_send_success":
                         self.acked_values.append(int(data["value"]))
-
-                finally:
-                    self.lock.release()
 
     @property
     def start_cmd(self):
@@ -76,41 +70,29 @@ class VerifiableProducer(BackgroundThreadService):
 
     @property
     def acked(self):
-        try:
-            self.lock.acquire()
+        with self.lock:
             return self.acked_values
-        finally:
-            self.lock.release()
 
     @property
     def not_acked(self):
-        try:
-            self.lock.acquire()
+        with self.lock:
             return self.not_acked_values
-        finally:
-            self.lock.release()
 
     @property
     def num_acked(self):
-        try:
-            self.lock.acquire()
+        with self.lock:
             return len(self.acked_values)
-        finally:
-            self.lock.release()
 
     @property
     def num_not_acked(self):
-        try:
-            self.lock.acquire()
+        with self.lock:
             return len(self.not_acked_values)
-        finally:
-            self.lock.release()
 
     def stop_node(self, node):
         node.account.kill_process("VerifiableProducer", allow_fail=False)
         # block until the corresponding thread exits
         if len(self.worker_threads) >= self.idx(node):
-            # Need to guard this because stop is preemtively called before the threads are added and started
+            # Need to guard this because stop is preemptively called before the worker threads are added and started
             self.worker_threads[self.idx(node) - 1].join()
 
     def clean_node(self, node):

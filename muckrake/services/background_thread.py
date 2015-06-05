@@ -23,7 +23,7 @@ class BackgroundThreadService(Service):
         super(BackgroundThreadService, self).__init__(context, num_nodes)
         self.worker_threads = []
         self.worker_errors = {}
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
     def _protected_worker(self, idx, node):
         """Protected worker captures exceptions and makes them available to the main thread.
@@ -33,11 +33,8 @@ class BackgroundThreadService(Service):
         try:
             self._worker(idx, node)
         except BaseException as e:
-            try:
-                self.lock.acquire()
+            with self.lock:
                 self.worker_errors[threading.currentThread().name] = e
-            finally:
-                self.lock.release()
 
             raise e
 
@@ -62,9 +59,9 @@ class BackgroundThreadService(Service):
         self.worker_threads = None
 
         # Propagate exceptions thrown in background threads
-        self.lock.acquire()
-        if len(self.worker_errors) > 0:
-            raise Exception(str(self.worker_errors))
+        with self.lock:
+            if len(self.worker_errors) > 0:
+                raise Exception(str(self.worker_errors))
 
     def stop(self):
         if self.worker_threads is not None:

@@ -96,7 +96,6 @@ class ConsoleConsumer(BackgroundThreadService):
 
         self.consumer_timeout_ms = consumer_timeout_ms
 
-        self.ready_to_finish = False
         self.from_beginning = from_beginning
         self.message_validator = message_validator
         self.messages_consumed = {idx: [] for idx in range(1, num_nodes + 1)}
@@ -131,15 +130,11 @@ class ConsoleConsumer(BackgroundThreadService):
             if msg is not None:
                 self.logger.debug("consumed a message: " + str(msg))
                 self.messages_consumed[idx].append(msg)
-            if self.ready_to_finish:
-                break
 
     def start_node(self, node):
-        self.ready_to_finish = False
         super(ConsoleConsumer, self).start_node(node)
 
     def stop_node(self, node):
-        self.ready_to_finish = True
         node.account.kill_process("java", allow_fail=True)
 
     def clean_node(self, node):

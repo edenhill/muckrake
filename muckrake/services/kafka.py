@@ -56,7 +56,7 @@ class KafkaService(Service):
     def start_node(self, node):
         node.account.create_file("/mnt/kafka.properties", self.render('kafka.properties', node=node, broker_id=self.idx(node)))
 
-        cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log & echo $! > /mnt/pid"
+        cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log & echo $! > /mnt/kafka.pid"
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)
         time.sleep(5)
@@ -66,7 +66,7 @@ class KafkaService(Service):
     def pids(self, node):
         """Return process ids associated with running processes on the given node."""
         try:
-            return [pid for pid in node.account.ssh_capture("cat /mnt/pid", callback=int)]
+            return [pid for pid in node.account.ssh_capture("cat /mnt/kafka.pid", callback=int)]
         except:
             return []
 
@@ -86,7 +86,7 @@ class KafkaService(Service):
         for pid in pids:
             node.account.signal(pid, sig, allow_fail=allow_fail)
 
-        node.account.ssh("rm -f /mnt/pid", allow_fail=True)
+        node.account.ssh("rm -f /mnt/kafka.pid", allow_fail=True)
 
     def clean_node(self, node):
         node.account.ssh("rm -rf /mnt/kafka-logs /mnt/kafka.properties /mnt/kafka.log")
