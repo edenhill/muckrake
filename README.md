@@ -123,7 +123,7 @@ EC2 Quickstart
 
         sudo apt-get update && sudo apt-get -y upgrade && sudo apt-get install -y git
         git clone https://github.com/confluentinc/ducktape.git
-        cd ducktape
+        cd muckrake
         aws/aws-init.sh
         . ~/.bashrc
 
