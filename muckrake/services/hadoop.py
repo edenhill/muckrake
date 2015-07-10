@@ -14,21 +14,24 @@
 
 from ducktape.services.service import Service
 
+from muckrake.defaults import DEFAULT_JDK
+
 import time
 import abc
 import os.path
 
 
-def create_hadoop_service(context, num_nodes, hadoop_distro, hadoop_version):
+def create_hadoop_service(context, num_nodes, hadoop_distro, hadoop_version, jdk=DEFAULT_JDK):
+
     if hadoop_distro == 'cdh':
         hadoop_home = '/opt/hadoop-cdh/'
         if hadoop_version == 1:
-            return CDHV1Service(context, num_nodes, hadoop_home)
+            return CDHV1Service(context, num_nodes, hadoop_home, jdk)
         else:
-            return CDHV2Service(context, num_nodes, hadoop_home)
+            return CDHV2Service(context, num_nodes, hadoop_home, jdk)
     else:
         hadoop_home = '/usr/hdp/current/hadoop-hdfs-namenode/../hadoop/'
-        return HDPService(context, num_nodes, hadoop_home)
+        return HDPService(context, num_nodes, hadoop_home, jdk)
 
 
 class HDFSService(Service):
@@ -40,7 +43,7 @@ class HDFSService(Service):
         }
     }
 
-    def __init__(self, context, num_nodes, hadoop_home, hadoop_distro):
+    def __init__(self, context, num_nodes, hadoop_home, hadoop_distro, jdk=DEFAULT_JDK):
         """
         :type context
         :type hadoop_home: str
@@ -53,8 +56,8 @@ class HDFSService(Service):
         self.hadoop_distro = hadoop_distro
         self.hadoop_bin_dir = 'bin'
         self.hadoop_example_jar = None
-
-
+        self.jdk = jdk
+        self.java_home = '/usr/lib/jvm/java-%d-oracle' % self.jdk
 
     def start(self):
         """Override Service.start
@@ -102,7 +105,7 @@ class HDFSService(Service):
     def distribute_hdfs_confs(self, node):
         self.logger.info("Distributing hdfs confs to %s", node.account.hostname)
 
-        hadoop_env = self.render(self.template('hadoop-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
+        hadoop_env = self.render(self.template('hadoop-env.sh'), java_home=self.java_home)
         core_site = self.render(self.template('core-site.xml'))
         hdfs_site = self.render(self.template('hdfs-site.xml'),
                                 dfs_replication=1, dfs_name_dir='/mnt/name', dfs_data_dir='/mnt/data')
@@ -133,12 +136,12 @@ class HDFSService(Service):
 
 
 class CDHV1Service(HDFSService):
-    def __init__(self, context, num_nodes, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home, jdk):
         """
         :type context
         :type hadoop_home: str
         """
-        super(CDHV1Service, self).__init__(context, num_nodes, hadoop_home, 'cdh')
+        super(CDHV1Service, self).__init__(context, num_nodes, hadoop_home, 'cdh', jdk)
         self.hadoop_bin_dir = 'bin-mapreduce1'
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce1/hadoop-examples-2.5.0-mr1-cdh5.3.0.jar'
@@ -214,12 +217,12 @@ class CDHV1Service(HDFSService):
 
 
 class CDHV2Service(HDFSService):
-    def __init__(self, context, num_nodes, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home, jdk):
         """
         :type context
         :type hadoop_home: str
         """
-        super(CDHV2Service, self).__init__(context, num_nodes, hadoop_home, 'cdh')
+        super(CDHV2Service, self).__init__(context, num_nodes, hadoop_home, 'cdh', jdk)
         self.hadoop_example_jar = self.hadoop_home + \
             'share/hadoop/mapreduce/hadoop-mapreduce-examples-*.jar'
 
@@ -257,7 +260,7 @@ class CDHV2Service(HDFSService):
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
-        yarn_env = self.render(self.template('yarn-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
+        yarn_env = self.render(self.template('yarn-env.sh'), java_home=self.java_home)
 
         node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred2-site.xml')))
         node.account.create_file("/mnt/yarn-env.sh", yarn_env)
@@ -293,12 +296,12 @@ class CDHV2Service(HDFSService):
 
 
 class HDPService(HDFSService):
-    def __init__(self, context, num_nodes, hadoop_home):
+    def __init__(self, context, num_nodes, hadoop_home, jdk):
         """
         :type context
         :type hadoop_home: str
         """
-        super(HDPService, self).__init__(context, num_nodes, hadoop_home, 'hdp')
+        super(HDPService, self).__init__(context, num_nodes, hadoop_home, 'hdp', jdk)
         self.hadoop_example_jar = '/usr/hdp/current/hadoop-mapreduce-client/hadoop-mapreduce-examples-*.jar'
         self.yarn_bin_path = '/usr/hdp/current/hadoop-yarn-resourcemanager/'
         self.hdfs_bin_path = '/usr/hdp/current/hadoop-hdfs-namenode/'
@@ -364,7 +367,7 @@ class HDPService(HDFSService):
     def distribute_mr_confs(self, node):
         self.logger.info("Distributing YARN confs to %s", node.account.hostname)
 
-        yarn_env = self.render(self.template('yarn-env.sh'), java_home='/usr/lib/jvm/java-6-oracle')
+        yarn_env = self.render(self.template('yarn-env.sh'), java_home=self.java_home)
 
         node.account.create_file("/mnt/mapred-site.xml", self.render(self.template('mapred-site.xml')))
         node.account.create_file("/mnt/yarn-site.xml", self.render(self.template('yarn-site.xml')))

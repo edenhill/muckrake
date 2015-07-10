@@ -9,9 +9,9 @@ fi
 # Detect jdk version
 jdk=`javac -version 2>&1 | cut -d ' ' -f 2`
 ver=`echo $jdk | cut -d '.' -f 2`
-if (( $ver > 6 )); then
+if (( $ver > 7 )); then
     echo "Found jdk version $jdk"
-    echo "You should only build with jdk 1.6 or below."
+    echo "You should only build with jdk 1.7 or below."
     exit 1
 fi
 
@@ -35,7 +35,7 @@ done
 
 # Default JAVA_HOME for EC2
 if [ -z "$JAVA_HOME" ]; then
-    export JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
+    export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
 fi
 
 # Default gradle for local gradle download, e.g. on EC2

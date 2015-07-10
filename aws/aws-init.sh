@@ -3,11 +3,31 @@
 # This script should be run once on your aws test driver machine before
 # attempting to run any ducktape tests
 
-# Install dependencies
-sudo apt-get install -y maven openjdk-6-jdk build-essential \
-            ruby-dev zlib1g-dev realpath python-setuptools
+while [[ $# > 0 ]]
+do
+key="$1"
+
+case $key in
+    --jdk)
+        jdk="$2"
+        shift # past argument
+        ;;
+    *)
+        # unknown option
+        ;;
+esac
+shift # past argument or value
+done
 
 base_dir=`dirname $0`/..
+if [ -z $jdk ]; then
+    jdk=7
+    echo "using default jdk: $jdk"
+fi
+
+# Install dependencies
+sudo apt-get install -y maven openjdk-$jdk-jdk build-essential \
+            ruby-dev zlib1g-dev realpath python-setuptools
 
 if [ -z `which vagrant` ]; then
     echo "Installing vagrant..."
