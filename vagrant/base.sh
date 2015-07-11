@@ -24,16 +24,16 @@ if [ -z `which javac` ]; then
     apt-get -y update
 
     # Try to share cache. See Vagrantfile for details
-    mkdir -p /var/cache/oracle-jdk6-installer
-    if [ -e "/tmp/oracle-jdk6-installer-cache/" ]; then
-        find /tmp/oracle-jdk6-installer-cache/ -not -empty -exec cp '{}' /var/cache/oracle-jdk6-installer/ \;
+    mkdir -p /var/cache/oracle-jdk7-installer
+    if [ -e "/tmp/oracle-jdk7-installer-cache/" ]; then
+        find /tmp/oracle-jdk7-installer-cache/ -not -empty -exec cp '{}' /var/cache/oracle-jdk7-installer/ \;
     fi
 
     /bin/echo debconf shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
-    apt-get -y install oracle-java6-installer oracle-java6-set-default
+    apt-get -y install oracle-java7-installer oracle-java7-set-default
 
-    if [ -e "/tmp/oracle-jdk6-installer-cache/" ]; then
-        cp -R /var/cache/oracle-jdk6-installer/* /tmp/oracle-jdk6-installer-cache
+    if [ -e "/tmp/oracle-jdk7-installer-cache/" ]; then
+        cp -R /var/cache/oracle-jdk7-installer/* /tmp/oracle-jdk7-installer-cache
     fi
 fi
 
@@ -81,5 +81,5 @@ gpg --keyserver pgp.mit.edu --recv-keys B9733A7A07513CAD
 gpg -a --export 07513CAD | apt-key add -
 apt-get update
 apt-get install -y hadoop hadoop-hdfs libhdfs0 hadoop-yarn hadoop-mapreduce hadoop-client openssl
-echo "export JAVA_HOME=/usr/lib/jvm/java-6-oracle" >> /etc/hadoop/conf/hadoop-env.sh
+echo "export JAVA_HOME=/usr/lib/jvm/java-7-oracle" >> /etc/hadoop/conf/hadoop-env.sh
 echo "export HADOOP_CONF_DIR=/mnt" >> /etc/hadoop/conf/hadoop-env.sh
