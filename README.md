@@ -58,7 +58,7 @@ Run tests
 Run one or more tests with ducktape. 
 ```    
     # Run tests in a file
-    duckape muckrake/tests/test_my_system_test.py
+    ducktape muckrake/tests/test_my_system_test.py
     
     # Run tests in a directory (search recursively)
     ducktape muckrake/tests
