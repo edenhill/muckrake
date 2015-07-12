@@ -60,14 +60,18 @@ fi
 chmod a+rwx /mnt
 
 # Install and configure CDH
-pushd /opt/
 if [ -h /opt/hadoop-cdh ]; then
     # reset symlink
     rm -f /opt/hadoop-cdh
 fi
-if [ ! -e /opt/hadoop-2.5.0-cdh5.3.0 ]; then
+pushd /tmp/vagrant-downloads
+if [ ! -e hadoop-2.5.0-cdh5.3.0.tar.gz ]; then
     wget http://archive.cloudera.com/cdh5/cdh/5/hadoop-2.5.0-cdh5.3.0.tar.gz
-    tar xvzf hadoop-2.5.0-cdh5.3.0.tar.gz
+fi
+popd
+pushd /opt/
+if [ ! -e hadoop-2.5.0-cdh5.3.0 ]; then
+    tar xvzf /tmp/vagrant-downloads/hadoop-2.5.0-cdh5.3.0.tar.gz
 fi
 ln -s /opt/hadoop-2.5.0-cdh5.3.0 /opt/hadoop-cdh
 popd
