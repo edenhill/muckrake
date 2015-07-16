@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import subprocess
 from ducktape.services.service import Service
-
-import time
+from ducktape.utils import wait
 
 
 class ZookeeperService(Service):
@@ -31,6 +31,16 @@ class ZookeeperService(Service):
         """
         super(ZookeeperService, self).__init__(context, num_nodes)
 
+    def alive (self, node):
+        """ Returns True if Zookeeper is running on 'node', else False """
+        try:
+            node.account.ssh("nc -vnz 127.0.0.1 2181")
+            return True
+        except subprocess.CalledProcessError:
+            return False
+        except:
+            raise
+
     def start_node(self, node):
         idx = self.idx(node)
         self.logger.info("Starting ZK node %d on %s", idx, node.account.hostname)
@@ -39,11 +49,12 @@ class ZookeeperService(Service):
         node.account.ssh("echo %d > /mnt/zookeeper/myid" % idx)
         node.account.create_file("/mnt/zookeeper.properties", self.render('zookeeper.properties'))
 
+        self.logger.debug('Starting zookeeper on %s' % node.account.hostname)
         node.account.ssh(
             "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"
             % self.logs["zk_log"])
-
-        time.sleep(5)  # give it some time to start
+        # Wait for node to start
+        wait.until(10, self.alive, node)
 
     def stop_node(self, node, allow_fail=True):
         # This uses Kafka-REST's stop service script because it's better behaved

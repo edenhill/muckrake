@@ -18,7 +18,8 @@ import json
 import re
 import signal
 import time
-
+import subprocess
+from ducktape.utils import wait
 
 class KafkaService(Service):
 
@@ -41,6 +42,17 @@ class KafkaService(Service):
         self.zk = zk
         self.topics = topics
 
+    def alive (self, node):
+        """ Returns True if Kafka is running on 'node', else False """
+        # FIXME: Grab a metadata listing instead.
+        try:
+            node.account.ssh("nc -vnz 127.0.0.1 9092")
+            return True
+        except subprocess.CalledProcessError:
+            return False
+        except:
+            raise
+
     def start(self):
         super(KafkaService, self).start()
 
@@ -59,7 +71,7 @@ class KafkaService(Service):
         cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log & echo $! > /mnt/kafka.pid"
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)
-        time.sleep(5)
+        wait.until(5, self.alive, node)
         if len(self.pids(node)) == 0:
             raise Exception("No process ids recorded on node %s" % str(node))
 
@@ -110,10 +122,24 @@ class KafkaService(Service):
         self.logger.info("Running topic creation command...\n%s" % cmd)
         node.account.ssh(cmd)
 
-        time.sleep(1)
+        # Wait for topic creation
+        wait.until(10, self.topic_exists, topic_cfg.get("topic"))
+
         self.logger.info("Checking to see if topic was properly created...\n%s" % cmd)
         for line in self.describe_topic(topic_cfg["topic"]).split("\n"):
             self.logger.info(line)
+
+    def topic_exists (self, topic):
+        """ Checks if topic exists, returns bool """
+        node = self.nodes[0] # any node is fine here
+        try:
+            node.account.ssh("/opt/kafka/bin/kafka-topics.sh --zookeeper %s --topic %s --describe" % \
+                             (self.zk.connect_setting(), topic))
+            return True
+        except subprocess.CalledProcessError:
+            return False
+        except:
+            raise
 
     def describe_topic(self, topic):
         node = self.nodes[0]
@@ -141,7 +167,7 @@ class KafkaService(Service):
                 "--reassignment-json-file %(reassignment_file)s "\
                 "--verify" % {'zk_connect': self.zk.connect_setting(),
                                 'reassignment_file': json_file}
-        cmd += " && sleep 1 && rm -f %s" % json_file
+        cmd += " && rm -f %s" % json_file
 
         # send command
         self.logger.info("Verifying parition reassignment...")
@@ -174,7 +200,7 @@ class KafkaService(Service):
                 "--reassignment-json-file %(reassignment_file)s "\
                 "--execute" % {'zk_connect': self.zk.connect_setting(),
                                 'reassignment_file': json_file}
-        cmd += " && sleep 1 && rm -f %s" % json_file
+        cmd += " && rm -f %s" % json_file
 
         # send command
         self.logger.info("Executing parition reassignment...")
@@ -189,7 +215,8 @@ class KafkaService(Service):
     def restart_node(self, node, wait_sec=0, clean_shutdown=True):
         """Restart the given node, waiting wait_sec in between stopping and starting up again."""
         self.stop_node(node, clean_shutdown, allow_fail=True)
-        time.sleep(wait_sec)
+        if wait_sec > 0:
+            wait.until_not(wait_sec, self.alive, node)
         self.start_node(node)
 
     def leader(self, topic, partition=0):
