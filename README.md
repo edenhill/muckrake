@@ -179,3 +179,13 @@ EC2 Quickstart
   * Right-click one of the provisioned machines and select images->Create image
   * Once the image (AMI) is created, it will have an id that looks something like `ami-fdc2f6cd`
   * Replace the id with the newly generated one in your Vagrantfile.local, and in muckrake/aws/aws-example-Vagrantfile.local
+
+
+
+Prerequisites
+-------------
+Muckrake depends on the following Python modules (Ubuntu packages):
+
+````
+sudo apt-get install python-websocket python-concurrent.futures
+````
