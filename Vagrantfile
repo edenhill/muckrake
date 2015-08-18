@@ -167,7 +167,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     name = "worker" + i.to_s
     config.vm.define name do |worker|
       name_node(worker, name)
-      ip_address = "192.168.50." + (100 + i).to_s
+      ip_address = "192.168.50." + (200 + i).to_s
       assign_local_ip(worker, ip_address)
       worker.vm.provision "shell", path: "vagrant/base.sh"
     end
