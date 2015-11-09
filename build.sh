@@ -40,7 +40,23 @@ fi
 
 # Default gradle for local gradle download, e.g. on EC2
 if [ ! `which gradle` ]; then
-    export PATH=$projects_dir/`find . | grep gradle-.*/bin$`:$PATH
+    gradle_dir=`(find . -type d -name bin | grep 'gradle-.*/bin$') || true`
+
+    if [[ ! -d "$gradle_dir" ]]; then
+	# Install gradle
+	gradle="gradle-2.2.1"
+	echo "Downloading and installing $gradle"
+	if [ ! -e $gradle-bin.zip ]; then
+		wget https://services.gradle.org/distributions/$gradle-bin.zip
+	fi
+	unzip $gradle-bin.zip
+	rm -rf $gradle-bin.zip
+	mv $gradle $projects_dir/$gradle
+
+	gradle_dir="$projects_dir/$gradle/bin"
+    fi
+
+    export PATH="$PATH:$PWD/$gradle_dir"
 fi
 
 KAFKA_VERSION=0.8.2.0
