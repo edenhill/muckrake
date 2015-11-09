@@ -71,7 +71,7 @@ class KafkaService(Service):
         cmd = "/opt/kafka/bin/kafka-server-start.sh /mnt/kafka.properties 1>> /mnt/kafka.log 2>> /mnt/kafka.log & echo $! > /mnt/kafka.pid"
         self.logger.debug("Attempting to start KafkaService on %s with command: %s" % (str(node.account), cmd))
         node.account.ssh(cmd)
-        wait.until(5, self.alive, node)
+        wait.until(5, lambda: self.alive(node))
         if len(self.pids(node)) == 0:
             raise Exception("No process ids recorded on node %s" % str(node))
 
@@ -123,7 +123,7 @@ class KafkaService(Service):
         node.account.ssh(cmd)
 
         # Wait for topic creation
-        wait.until(10, self.topic_exists, topic_cfg.get("topic"))
+        wait.until(10, lambda: self.topic_exists(topic_cfg.get("topic")))
 
         self.logger.info("Checking to see if topic was properly created...\n%s" % cmd)
         for line in self.describe_topic(topic_cfg["topic"]).split("\n"):
@@ -216,7 +216,7 @@ class KafkaService(Service):
         """Restart the given node, waiting wait_sec in between stopping and starting up again."""
         self.stop_node(node, clean_shutdown, allow_fail=True)
         if wait_sec > 0:
-            wait.until_not(wait_sec, self.alive, node)
+            wait.until_not(wait_sec, lambda: self.alive(node))
         self.start_node(node)
 
     def leader(self, topic, partition=0):

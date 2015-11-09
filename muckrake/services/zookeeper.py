@@ -54,7 +54,7 @@ class ZookeeperService(Service):
             "/opt/kafka/bin/zookeeper-server-start.sh /mnt/zookeeper.properties 1>> %(path)s 2>> %(path)s &"
             % self.logs["zk_log"])
         # Wait for node to start
-        wait.until(10, self.alive, node)
+        wait.until(10, lambda: self.alive(node))
 
     def stop_node(self, node, allow_fail=True):
         # This uses Kafka-REST's stop service script because it's better behaved
