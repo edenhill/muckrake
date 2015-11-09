@@ -128,7 +128,7 @@ class KafkaClientCtrlWebsocket (KafkaClientCtrlComms):
     def _ws_main (self, url):
         """ WebSocket main thread: runs the websocket app dispatcher """
         websocket.enableTrace(False)
-        self.cc.logger.info("%s: Connect websocket to %s" % (self.cc.cr.name, url))
+        self.cc.logger.info("%s: Connect websocket to %s" % (self.cc.kc.name, url))
         self.ws = websocket.WebSocketApp(url,
                                          on_message=self._ws_on_message,
                                          on_close=self._ws_on_close)
@@ -244,13 +244,13 @@ class GenericExecutor (futures.Executor):
 
 class KafkaClientCtrl(object):
     """ Kafka Client controller """
-    def __init__(self, cr):
-        """ 'cr' is a KafkaClientRegistry instance """
+    def __init__(self, kc):
+        """ 'kc' is a KafkaClient instance """
         super(KafkaClientCtrl, self).__init__()
-        self.logger = cr.logger
-        self.cr = cr
+        self.logger = kc.logger
+        self.kc = kc
         self.executor = GenericExecutor()
-        self.comms = KafkaClientCtrlWebsocket(self, cr.url, handle_push=self.handle_push)
+        self.comms = KafkaClientCtrlWebsocket(self, kc.url, handle_push=self.handle_push)
         self.test_id = str(uuid.uuid1())[0:7] # FIXME: dont trunc
         self.batch_id_next = random.randint(1, 1000000) * 1000
         self.batches = dict()
@@ -263,7 +263,7 @@ class KafkaClientCtrl(object):
         self.logger.debug('created')
 
     def __repr__ (self):
-        return '<%s(url=%s, name=%s)>' % (self.__class__, self.cr.url, self.name)
+        return '<%s(url=%s, name=%s)>' % (self.__class__, self.kc.url, self.name)
 
     
     def handle_push (self, msgtype, data):
@@ -325,7 +325,7 @@ class KafkaClientCtrl(object):
         except futures.TimeoutError:
             rep = {'err': 'Request timed out'}
         if rep['err']:
-            self.logger.error('%s: Open error: %s' % (self.cr.name, rep['err']))
+            self.logger.error('%s: Open error: %s' % (self.kc.name, rep['err']))
             return False
         if 'clientname' not in rep or 'capabilities' not in rep:
             self.logger.error('Client responded with incompatible hello reply: %s' % rep)
@@ -371,7 +371,7 @@ class KafkaClientCtrlInstance (object):
         self.iid = -1
 
     def __repr__ (self):
-        return '<%s(url=%s, ctype=%s, iid=%d)>' % (self.__class__, self.cc.cr.url, self.ctype, self.iid)
+        return '<%s(url=%s, ctype=%s, iid=%d)>' % (self.__class__, self.cc.kc.url, self.ctype, self.iid)
 
     def open (self, config={}):
         """ Create/open new instance with provided (optional) config.
@@ -392,13 +392,13 @@ class KafkaClientCtrlInstance (object):
     def close (self):
         """ Close/delete a client instance.
             This is a blocking operation """
-        self.cc.logger.info('%s: Closing %s with instance-id %s' % (self.cc.cr.name, self.ctype, self.iid))
+        self.cc.logger.info('%s: Closing %s with instance-id %s' % (self.cc.kc.name, self.ctype, self.iid))
         try:
             rep = self.cc.req('delete', {'iid': self.iid}).result(5)
         except futures.TimeoutError:
             rep = {'err': 'Request timed out'}
         if rep['err']:
-            self.cc.logger.warning('%s: Failed to close %s instance %s: %s' % (self.cc.cr.name, self.ctype, self.iid, rep['err']))
+            self.cc.logger.warning('%s: Failed to close %s instance %s: %s' % (self.cc.kc.name, self.ctype, self.iid, rep['err']))
         self.iid = None
 
 

@@ -109,14 +109,14 @@ class KafkaClientBasicTest(Test):
         caps_action = TestAction('capabilities', desc='Client capabilities', parent=root)
         for ch in self.clients:
             with TestAction('list', instance=ch.implname, parent=caps_action) as action:
-                action.passed('%s' % ch.kc.cr.cc.caps)
+                action.passed('%s' % ch.kc.cc.caps)
         caps_action.done()
 
         # Verify that a version is reported
         version_action = TestAction('version', desc='Client implementation version', parent=root)
         for ch in self.clients:
             with TestAction('verify', instance=ch.implname, parent=version_action) as action:
-                version = ch.kc.cr.cc.version
+                version = ch.kc.cc.version
                 if len(version) == 0 or version == 'FIXME':
                     action.failed('No/phony version reported ("%s")' % version)
                 else:
@@ -173,7 +173,8 @@ class KafkaClientBasicTest(Test):
         # Stop client controllers
         self.logger.debug('Stopping %d clients' % len(self.clients))
         for ch in self.clients:
-            ch.kc.stop()
+            if ch.kc:
+                ch.kc.stop()
 
         root_producer.done()
         root.done()
@@ -234,7 +235,7 @@ class KafkaClientBasicTest(Test):
 
     def eligible_clients (self, caps, clients):
         """ Returns a list of eligible clients matching all of the keywords """
-        return [x for x in clients if x.kc.cr.cc != None and caps in x.kc.cr.cc.caps]
+        return [x for x in clients if x.kc.cc != None and caps in x.kc.cc.caps]
 
     def chlist_consumers_from_producers (self, action, chlist, avoid_same_impl=False,
                                          full_matrix=False):
