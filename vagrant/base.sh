@@ -17,7 +17,14 @@
 
 set -e
 
-if [ -z `which javac` ]; then
+if [ ! -z `which javac` ]; then
+    jdk=`javac -version 2>&1 | cut -d ' ' -f 2`
+    jdk_ver=`echo $jdk | cut -d '.' -f 2`
+else
+    jdk_ver=0
+fi
+
+if [ $jdk_ver != 7 ]; then
     apt-get -y update
     apt-get install -y software-properties-common python-software-properties
     add-apt-repository -y ppa:webupd8team/java
